@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiMenu, FiX, FiUser, FiLogOut, FiHeart, FiCalendar, FiHome } from 'react-icons/fi';
-import API from '../api/axios';
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
