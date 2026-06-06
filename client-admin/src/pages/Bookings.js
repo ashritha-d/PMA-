@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiCheck, FiX, FiMessageSquare } from 'react-icons/fi';
+import { FiCheck, FiX, FiMessageSquare } from 'react-icons/fi';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
 
@@ -28,6 +28,7 @@ const Bookings = () => {
     } finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchBookings(); }, [page, statusFilter]);
 
   const handleStatus = async (id, status) => {

@@ -26,6 +26,7 @@ const Users = () => {
     } finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchUsers(); }, [page, search, statusFilter]);
 
   const toggleStatus = async (id, current) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare, FiTrendingUp } from 'react-icons/fi';
+import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare } from 'react-icons/fi';
 import API from '../api/axios';
 
 const COLORS = ['#1a56db', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];

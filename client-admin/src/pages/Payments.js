@@ -28,6 +28,7 @@ const Payments = () => {
     } finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchPayments(); }, [page, statusFilter]);
 
   const handleVerify = async (id, status) => {

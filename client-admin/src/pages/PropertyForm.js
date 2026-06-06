@@ -47,7 +47,7 @@ const PropertyForm = () => {
         setExistingImages(p.images || []);
       }).catch(() => toast.error('Failed to load property'));
     }
-  }, [id]);
+  }, [id, isEdit]);
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
