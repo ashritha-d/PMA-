@@ -9,7 +9,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ bookings: 0, favorites: 0, payments: 0, inquiries: 0 });
   const [recentBookings, setRecentBookings] = useState([]);
   const [recentPayments, setRecentPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([

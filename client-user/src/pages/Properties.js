@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FiFilter, FiX, FiGrid, FiList } from 'react-icons/fi';
+import { FiFilter, FiX } from 'react-icons/fi';
 import PropertyCard from '../components/PropertyCard';
 import API from '../api/axios';
 
 const CITIES = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad'];
 
 const Properties = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -42,8 +42,8 @@ const Properties = () => {
     }
   }, [filters]);
 
-  useEffect(() => { fetchProperties(page); }, [page]);
-  useEffect(() => { setPage(1); fetchProperties(1); }, [filters]);
+  useEffect(() => { fetchProperties(page); }, [page, fetchProperties]);
+  useEffect(() => { setPage(1); fetchProperties(1); }, [filters, fetchProperties]);
 
   const handleFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
   const clearFilters = () => setFilters({ search: '', type: '', listingType: '', city: '', minPrice: '', maxPrice: '', bedrooms: '', furnished: '' });

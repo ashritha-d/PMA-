@@ -10,10 +10,10 @@ const Footer = () => (
           <div className="footer-logo">Prop<span>Manage</span></div>
           <p className="footer-desc">Your trusted partner for premium property management. Finding the perfect home has never been easier.</p>
           <div className="footer-social" style={{ marginTop: 24 }}>
-            <a href="#"><FiFacebook /></a>
-            <a href="#"><FiTwitter /></a>
-            <a href="#"><FiInstagram /></a>
-            <a href="#"><FiLinkedin /></a>
+            <a href="https://facebook.com" target="_blank" rel="noreferrer"><FiFacebook /></a>
+            <a href="https://twitter.com" target="_blank" rel="noreferrer"><FiTwitter /></a>
+            <a href="https://instagram.com" target="_blank" rel="noreferrer"><FiInstagram /></a>
+            <a href="https://linkedin.com" target="_blank" rel="noreferrer"><FiLinkedin /></a>
           </div>
         </div>
         <div>
@@ -47,8 +47,8 @@ const Footer = () => (
       <div className="footer-bottom">
         <p style={{ fontSize: '0.85rem', opacity: 0.6 }}>© {new Date().getFullYear()} PropManage. All rights reserved.</p>
         <div style={{ display: 'flex', gap: 24, fontSize: '0.85rem', opacity: 0.6 }}>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms of Service</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
         </div>
       </div>
     </div>

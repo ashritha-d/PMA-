@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
 
@@ -10,13 +9,11 @@ const Payments = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ amount: '', paymentType: 'booking_fee', paymentMode: 'upi', transactionId: '', notes: '', property: '' });
-  const [properties, setProperties] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    Promise.all([API.get('/payments/my'), API.get('/auth/favorites')]).then(([p, f]) => {
+    API.get('/payments/my').then(p => {
       setPayments(p.data.payments || []);
-      setProperties(f.data.favorites || []);
     }).finally(() => setLoading(false));
   }, []);
 

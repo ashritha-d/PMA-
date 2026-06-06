@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiUser, FiCamera } from 'react-icons/fi';
+import { FiCamera } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
@@ -18,7 +18,7 @@ const Profile = () => {
     fd.append('photo', file);
     setUploading(true);
     try {
-      const { data } = await API.put('/users/photo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await API.put('/users/photo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success('Photo updated!');
       window.location.reload();
     } catch { toast.error('Failed to upload photo'); } finally { setUploading(false); }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiMenu, FiX, FiBell, FiUser, FiLogOut, FiHeart, FiCalendar, FiHome } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiHeart, FiCalendar, FiHome } from 'react-icons/fi';
 import API from '../api/axios';
 
 const Navbar = () => {
@@ -9,7 +9,6 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [dropdown, setDropdown] = useState(false);
-  const [unread, setUnread] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,12 +16,6 @@ const Navbar = () => {
     window.addEventListener('scroll', handler);
     return () => window.removeEventListener('scroll', handler);
   }, []);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      API.get('/notifications/user').then(r => setUnread(r.data.unread || 0)).catch(() => {});
-    }
-  }, [isAuthenticated]);
 
   const handleLogout = () => { logout(); navigate('/'); setDropdown(false); };
 
