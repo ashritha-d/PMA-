@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: pma-server
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: CLIENT_USER_URL
+        sync: false
+      - key: CLIENT_ADMIN_URL
+        sync: false
+      - key: MAX_FILE_SIZE
+        value: "10485760"
