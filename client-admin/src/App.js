@@ -16,6 +16,19 @@ const Inquiries = lazy(() => import('./pages/Inquiries'));
 const Reviews = lazy(() => import('./pages/Reviews'));
 const CMS = lazy(() => import('./pages/CMS'));
 const Reports = lazy(() => import('./pages/Reports'));
+const Owners = lazy(() => import('./pages/Owners'));
+const OwnerForm = lazy(() => import('./pages/OwnerForm'));
+const OwnerProfile = lazy(() => import('./pages/OwnerProfile'));
+const Tenants = lazy(() => import('./pages/Tenants'));
+const TenantForm = lazy(() => import('./pages/TenantForm'));
+const TenantProfile = lazy(() => import('./pages/TenantProfile'));
+const Contracts = lazy(() => import('./pages/Contracts'));
+const ContractForm = lazy(() => import('./pages/ContractForm'));
+const ContractDetail = lazy(() => import('./pages/ContractDetail'));
+const FinTrans = lazy(() => import('./pages/FinTrans'));
+const FinTransForm = lazy(() => import('./pages/FinTransForm'));
+const ServTrans = lazy(() => import('./pages/ServTrans'));
+const ServTransForm = lazy(() => import('./pages/ServTransForm'));
 
 const Loading = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -51,6 +64,24 @@ function App() {
                     <Route path="/reviews" element={<Reviews />} />
                     <Route path="/cms" element={<CMS />} />
                     <Route path="/reports" element={<Reports />} />
+                    <Route path="/owners" element={<Owners />} />
+                    <Route path="/owners/new" element={<OwnerForm />} />
+                    <Route path="/owners/edit/:id" element={<OwnerForm />} />
+                    <Route path="/owners/:id" element={<OwnerProfile />} />
+                    <Route path="/tenants" element={<Tenants />} />
+                    <Route path="/tenants/new" element={<TenantForm />} />
+                    <Route path="/tenants/edit/:id" element={<TenantForm />} />
+                    <Route path="/tenants/:id" element={<TenantProfile />} />
+                    <Route path="/contracts" element={<Contracts />} />
+                    <Route path="/contracts/new" element={<ContractForm />} />
+                    <Route path="/contracts/edit/:id" element={<ContractForm />} />
+                    <Route path="/contracts/:id" element={<ContractDetail />} />
+                    <Route path="/fintrans" element={<FinTrans />} />
+                    <Route path="/fintrans/new" element={<FinTransForm />} />
+                    <Route path="/fintrans/edit/:id" element={<FinTransForm />} />
+                    <Route path="/servtrans" element={<ServTrans />} />
+                    <Route path="/servtrans/new" element={<ServTransForm />} />
+                    <Route path="/servtrans/edit/:id" element={<ServTransForm />} />
                   </Routes>
                 </AdminLayout>
               </ProtectedRoute>

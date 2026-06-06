@@ -62,6 +62,11 @@ app.use('/api/inquiries', require('./routes/inquiries'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/cms', require('./routes/cms'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/owners', require('./routes/owners'));
+app.use('/api/tenants', require('./routes/tenants'));
+app.use('/api/contracts', require('./routes/contracts'));
+app.use('/api/fintrans', require('./routes/finTrans'));
+app.use('/api/servtrans', require('./routes/servTrans'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 
