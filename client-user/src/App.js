@@ -16,6 +16,7 @@ const Bookings = lazy(() => import('./pages/Bookings'));
 const Favorites = lazy(() => import('./pages/Favorites'));
 const Payments = lazy(() => import('./pages/Payments'));
 const Profile = lazy(() => import('./pages/Profile'));
+const UserPropertyDetail = lazy(() => import('./pages/UserPropertyDetail'));
 const Contact = lazy(() => import('./pages/Contact'));
 const About = lazy(() => import('./pages/About'));
 
@@ -49,6 +50,7 @@ function App() {
             <Route path="/favorites" element={<PrivateRoute><Favorites /></PrivateRoute>} />
             <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+            <Route path="/my-properties/:id" element={<PrivateRoute><UserPropertyDetail /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>

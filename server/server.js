@@ -62,6 +62,7 @@ app.use('/api/inquiries', require('./routes/inquiries'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/cms', require('./routes/cms'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/user-properties', require('./routes/userProperties'));
 app.use('/api/owners', require('./routes/owners'));
 app.use('/api/tenants', require('./routes/tenants'));
 app.use('/api/contracts', require('./routes/contracts'));

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiHome, FiCalendar, FiHeart, FiDollarSign, FiUser, FiMessageSquare } from 'react-icons/fi';
+import { FiHome, FiCalendar, FiHeart, FiDollarSign, FiUser, FiMessageSquare, FiTrendingUp, FiCheckCircle } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({ bookings: 0, favorites: 0, payments: 0, inquiries: 0 });
+  const [propStats, setPropStats] = useState({ total: 0, available: 0, occupied: 0, monthlyIncome: 0 });
   const [recentBookings, setRecentBookings] = useState([]);
   const [recentPayments, setRecentPayments] = useState([]);
   const [, setLoading] = useState(true);
@@ -17,10 +18,12 @@ const Dashboard = () => {
       API.get('/auth/favorites'),
       API.get('/payments/my'),
       API.get('/inquiries/my'),
-    ]).then(([b, f, p, i]) => {
+      API.get('/user-properties/my/stats').catch(() => ({ data: { stats: {} } })),
+    ]).then(([b, f, p, i, ps]) => {
       setStats({ bookings: b.data.bookings?.length || 0, favorites: f.data.favorites?.length || 0, payments: p.data.payments?.length || 0, inquiries: i.data.inquiries?.length || 0 });
       setRecentBookings(b.data.bookings?.slice(0, 5) || []);
       setRecentPayments(p.data.payments?.slice(0, 5) || []);
+      setPropStats(ps.data.stats || {});
     }).finally(() => setLoading(false));
   }, []);
 
@@ -35,8 +38,8 @@ const Dashboard = () => {
           <p style={{ color: 'var(--gray-500)', marginTop: 4 }}>Here's an overview of your activity</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid-4" style={{ marginBottom: 40 }}>
+        {/* Activity Stats */}
+        <div className="grid-4" style={{ marginBottom: 28 }}>
           {[
             { icon: <FiCalendar size={24} />, label: 'Bookings', value: stats.bookings, color: '#dbeafe', link: '/bookings' },
             { icon: <FiHeart size={24} />, label: 'Saved Properties', value: stats.favorites, color: '#fee2e2', link: '/favorites' },
@@ -53,6 +56,30 @@ const Dashboard = () => {
               </div>
             </Link>
           ))}
+        </div>
+
+        {/* My Properties Stats */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontWeight: 700 }}>My Properties</h3>
+            <Link to="/profile" state={{ tab: 'properties' }} style={{ fontSize: '0.85rem', color: 'var(--primary)' }}>Manage Properties →</Link>
+          </div>
+          <div className="grid-4">
+            {[
+              { icon: <FiHome size={22} />, label: 'Total Properties', value: propStats.total || 0, color: 'var(--primary)', bg: '#ede9fe' },
+              { icon: <FiCheckCircle size={22} />, label: 'Available', value: propStats.available || 0, color: '#10b981', bg: '#d1fae5' },
+              { icon: <FiTrendingUp size={22} />, label: 'Occupied', value: propStats.occupied || 0, color: '#3b82f6', bg: '#dbeafe' },
+              { icon: <FiDollarSign size={22} />, label: 'Monthly Income', value: `₹${(propStats.monthlyIncome || 0).toLocaleString()}`, color: '#f59e0b', bg: '#fef3c7' },
+            ].map((s, i) => (
+              <div key={i} className="card card-body" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ background: s.bg, borderRadius: 12, padding: 12, color: s.color, flexShrink: 0 }}>{s.icon}</div>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{s.value}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{s.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="grid-2">
