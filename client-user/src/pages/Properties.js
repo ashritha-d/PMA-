@@ -81,10 +81,14 @@ const Properties = () => {
                   <option value="">All Types</option>
                   <option value="apartment">Apartment</option>
                   <option value="villa">Villa</option>
+                  <option value="house">House</option>
                   <option value="commercial">Commercial</option>
                   <option value="office">Office</option>
+                  <option value="shop">Shop</option>
                   <option value="plot">Plot</option>
+                  <option value="land">Land</option>
                   <option value="pg">PG/Hostel</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               <div className="filter-group">

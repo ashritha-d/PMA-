@@ -8,6 +8,7 @@ const API_BASE = process.env.REACT_APP_API_URL || '';
 const PROPERTY_TYPES = ['Apartment', 'Villa', 'House', 'Commercial', 'Land', 'Office', 'Shop', 'Other'];
 const FURNISHING_OPTIONS = ['Furnished', 'Semi-Furnished', 'Unfurnished'];
 const STATUS_OPTIONS = ['Available', 'Occupied', 'Under Maintenance'];
+const LISTING_TYPES = [{ value: 'rent', label: 'For Rent' }, { value: 'sale', label: 'For Sale' }];
 
 const Section = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -43,6 +44,7 @@ const PropertyForm = ({ property, onSuccess, onClose }) => {
   const [form, setForm] = useState({
     propertyName: property?.propertyName || '',
     propertyType: property?.propertyType || 'Apartment',
+    listingType: property?.listingType || 'rent',
     description: property?.description || '',
     status: property?.status || 'Available',
     country: property?.country || 'India',
@@ -201,13 +203,20 @@ const PropertyForm = ({ property, onSuccess, onClose }) => {
 
           {/* Basic Details */}
           <Section title="Basic Details">
-            <Grid2>
+            <div style={{ marginBottom: 16 }}>
               <FormField label="Property Name" required>
                 <input className="form-input" value={form.propertyName} onChange={e => set('propertyName', e.target.value)} placeholder="e.g. Sunrise Apartment 2BHK" required />
               </FormField>
+            </div>
+            <Grid2>
               <FormField label="Property Type" required>
                 <select className="form-input" value={form.propertyType} onChange={e => set('propertyType', e.target.value)}>
                   {PROPERTY_TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </FormField>
+              <FormField label="Listing Type" required>
+                <select className="form-input" value={form.listingType} onChange={e => set('listingType', e.target.value)}>
+                  {LISTING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </FormField>
             </Grid2>
