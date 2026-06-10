@@ -1,11 +1,198 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiMaximize, FiMapPin, FiHeart, FiPhone, FiMail, FiCalendar, FiStar, FiCheckCircle } from 'react-icons/fi';
+import { FiMaximize, FiMapPin, FiHeart, FiPhone, FiMail, FiCalendar, FiStar, FiCheckCircle, FiFileText, FiShoppingCart, FiX, FiChevronRight, FiChevronLeft, FiDownload, FiEdit3 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
 
+// ─── Signature Canvas ────────────────────────────────────────────────────────
+const SignatureCanvas = ({ canvasRef }) => {
+  const isDrawing = useRef(false);
+
+  const getPos = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const startDrawing = useCallback((e) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const pos = getPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    isDrawing.current = true;
+  }, [canvasRef]);
+
+  const draw = useCallback((e) => {
+    if (!isDrawing.current) return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const pos = getPos(e, canvas);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }, [canvasRef]);
+
+  const stopDrawing = useCallback(() => { isDrawing.current = false; }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={520}
+      height={140}
+      onMouseDown={startDrawing}
+      onMouseMove={draw}
+      onMouseUp={stopDrawing}
+      onMouseLeave={stopDrawing}
+      onTouchStart={startDrawing}
+      onTouchMove={draw}
+      onTouchEnd={stopDrawing}
+      style={{ border: '2px dashed #d1d5db', borderRadius: 8, cursor: 'crosshair', touchAction: 'none', width: '100%', background: '#fafafa' }}
+    />
+  );
+};
+
+// ─── Contract Print View ──────────────────────────────────────────────────────
+const ContractDocument = ({ contract, property, buyer }) => {
+  const fmt = (n) => n >= 10000000 ? `₹${(n / 10000000).toFixed(2)} Cr` : n >= 100000 ? `₹${(n / 100000).toFixed(2)} L` : `₹${Number(n || 0).toLocaleString()}`;
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  return (
+    <div id="contract-print-area" style={{ fontFamily: 'serif', lineHeight: 1.7, color: '#111', fontSize: '0.9rem' }}>
+      <div style={{ textAlign: 'center', borderBottom: '3px double #333', paddingBottom: 16, marginBottom: 24 }}>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: 1, marginBottom: 4 }}>PROPERTY PURCHASE AGREEMENT</h2>
+        <div style={{ fontSize: '0.8rem', color: '#555' }}>Contract No: <strong>{contract.contractNumber || 'DRAFT'}</strong> &nbsp;|&nbsp; Date: <strong>{today}</strong></div>
+      </div>
+
+      <p style={{ marginBottom: 16 }}>
+        This Property Purchase Agreement ("Agreement") is entered into on <strong>{today}</strong> between:
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <div style={{ background: '#f0f7ff', padding: 16, borderRadius: 8, borderLeft: '4px solid #2563eb' }}>
+          <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.85rem', color: '#2563eb' }}>BUYER</div>
+          <div><strong>{contract.buyerName || `${buyer?.firstName} ${buyer?.lastName}`}</strong></div>
+          <div style={{ fontSize: '0.82rem', color: '#444', marginTop: 4 }}>{contract.buyerEmail || buyer?.email}</div>
+          {(contract.buyerPhone || buyer?.phone) && <div style={{ fontSize: '0.82rem', color: '#444' }}>{contract.buyerPhone || buyer?.phone}</div>}
+        </div>
+        <div style={{ background: '#f0fdf4', padding: 16, borderRadius: 8, borderLeft: '4px solid #16a34a' }}>
+          <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.85rem', color: '#16a34a' }}>SELLER / OWNER</div>
+          <div><strong>{contract.ownerName || property?.ownerInfo?.name || 'Owner Name'}</strong></div>
+          <div style={{ fontSize: '0.82rem', color: '#444', marginTop: 4 }}>{contract.ownerEmail || property?.ownerInfo?.email || ''}</div>
+          {(contract.ownerPhone || property?.ownerInfo?.phone) && <div style={{ fontSize: '0.82rem', color: '#444' }}>{contract.ownerPhone || property?.ownerInfo?.phone}</div>}
+        </div>
+      </div>
+
+      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>PROPERTY DETAILS</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.85rem' }}>
+          <div><span style={{ color: '#777' }}>Property:</span> <strong>{contract.propertyTitle || property?.title}</strong></div>
+          <div><span style={{ color: '#777' }}>Property ID:</span> <strong>{contract.propertyCode || property?.propertyCode}</strong></div>
+          <div style={{ gridColumn: '1/-1' }}><span style={{ color: '#777' }}>Address:</span> <strong>{contract.propertyAddress || [property?.address?.line1, property?.address?.city, property?.address?.state].filter(Boolean).join(', ')}</strong></div>
+          {property?.type && <div><span style={{ color: '#777' }}>Type:</span> <strong style={{ textTransform: 'capitalize' }}>{property.type}</strong></div>}
+          {property?.features?.builtupArea && <div><span style={{ color: '#777' }}>Area:</span> <strong>{property.features.builtupArea} sqft</strong></div>}
+        </div>
+      </div>
+
+      <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>FINANCIAL TERMS</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <tbody>
+            {[
+              ['Agreed Purchase Price', fmt(contract.purchasePrice || property?.price)],
+              ['Token / Advance Amount', fmt(contract.advanceAmount)],
+              ['Balance Amount', fmt(contract.balanceAmount)],
+              ['Property Handover Date', contract.handoverDate ? new Date(contract.handoverDate).toLocaleDateString('en-IN') : 'As mutually agreed'],
+            ].map(([k, v]) => (
+              <tr key={k} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                <td style={{ padding: '8px 4px', color: '#555' }}>{k}</td>
+                <td style={{ padding: '8px 4px', fontWeight: 700, textAlign: 'right' }}>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {contract.paymentSchedule?.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>PAYMENT SCHEDULE</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', border: '1px solid #e5e7eb' }}>
+            <thead style={{ background: '#f3f4f6' }}>
+              <tr>
+                {['Due Date', 'Amount', 'Description', 'Status'].map(h => <th key={h} style={{ padding: 8, textAlign: 'left', fontWeight: 600 }}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {contract.paymentSchedule.map((item, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: 8 }}>{item.dueDate ? new Date(item.dueDate).toLocaleDateString('en-IN') : '—'}</td>
+                  <td style={{ padding: 8, fontWeight: 600 }}>{fmt(item.amount)}</td>
+                  <td style={{ padding: 8 }}>{item.description || '—'}</td>
+                  <td style={{ padding: 8, textTransform: 'capitalize' }}>{item.status || 'pending'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>TERMS & CONDITIONS</div>
+        <ol style={{ paddingLeft: 20, fontSize: '0.82rem', color: '#444' }}>
+          <li style={{ marginBottom: 6 }}>The Buyer agrees to purchase the above-described property from the Seller at the agreed purchase price stated herein.</li>
+          <li style={{ marginBottom: 6 }}>The Advance/Token Amount specified shall be paid within 3 business days of signing this agreement.</li>
+          <li style={{ marginBottom: 6 }}>The balance amount shall be payable as per the payment schedule outlined above, failing which this agreement may be terminated at the Seller's discretion.</li>
+          <li style={{ marginBottom: 6 }}>The Seller shall ensure that the property is free from all encumbrances, liens, and disputes at the time of handover.</li>
+          <li style={{ marginBottom: 6 }}>All property taxes, society charges, and utility dues up to the date of handover shall be settled by the Seller.</li>
+          <li style={{ marginBottom: 6 }}>The property shall be handed over to the Buyer on or before the Handover Date specified, subject to full payment receipt.</li>
+          <li style={{ marginBottom: 6 }}>Both parties agree to execute a registered Sale Deed within 30 days of this agreement.</li>
+          <li style={{ marginBottom: 6 }}>This agreement is binding upon both parties and their respective heirs, executors, and assigns.</li>
+        </ol>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>CANCELLATION & REFUND POLICY</div>
+        <ol style={{ paddingLeft: 20, fontSize: '0.82rem', color: '#444' }}>
+          <li style={{ marginBottom: 6 }}>If the Buyer cancels this agreement within 7 days of signing, 50% of the advance amount shall be refunded.</li>
+          <li style={{ marginBottom: 6 }}>If the Buyer cancels after 7 days, the advance amount shall be forfeited entirely unless mutually agreed otherwise.</li>
+          <li style={{ marginBottom: 6 }}>If the Seller cancels this agreement, the full advance amount plus an equal penalty shall be refunded to the Buyer.</li>
+          <li style={{ marginBottom: 6 }}>Force majeure events shall be treated separately as mutually agreed upon by both parties.</li>
+        </ol>
+      </div>
+
+      <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 20, marginTop: 24 }}>
+        <div style={{ fontWeight: 700, marginBottom: 16 }}>DIGITAL SIGNATURES</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          {[['Buyer', contract.buyerName], ['Seller/Owner', contract.ownerName]].map(([role, name]) => (
+            <div key={role} style={{ textAlign: 'center' }}>
+              <div style={{ border: '1px dashed #d1d5db', height: 60, borderRadius: 8, marginBottom: 8, background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#9ca3af' }}>Signature</div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{name || role}</div>
+              <div style={{ fontSize: '0.75rem', color: '#777' }}>{role}</div>
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>Date: ___________</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: 24, fontSize: '0.75rem', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
+        This is a digitally generated document. Contract ID: {contract.contractNumber || 'DRAFT'} | PropManage Property Services
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 const PropertyDetail = () => {
   const { id } = useParams();
   const { user, toggleFavorite, isAuthenticated } = useAuth();
@@ -16,9 +203,16 @@ const PropertyDetail = () => {
   const [activeImg, setActiveImg] = useState(0);
   const [showBooking, setShowBooking] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [showPurchase, setShowPurchase] = useState(false);
   const [booking, setBooking] = useState({ visitDate: '', visitTime: '', message: '', bookingType: 'visit' });
   const [review, setReview] = useState({ rating: 5, title: '', comment: '' });
   const [submitting, setSubmitting] = useState(false);
+
+  // Purchase wizard state
+  const [wizardStep, setWizardStep] = useState(1);
+  const [contractForm, setContractForm] = useState({ advanceAmount: '', handoverDate: '', termsAccepted: false, paymentSchedule: [] });
+  const [createdContract, setCreatedContract] = useState(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -70,6 +264,82 @@ const PropertyDetail = () => {
       toast.error('Failed to send inquiry');
     }
   };
+
+  const openPurchaseWizard = () => {
+    if (!isAuthenticated) { toast.error('Please login to proceed'); navigate('/login'); return; }
+    const defaultAdvance = Math.round((property.price || 0) * 0.1);
+    setContractForm({ advanceAmount: defaultAdvance, handoverDate: '', termsAccepted: false, paymentSchedule: [] });
+    setWizardStep(1);
+    setCreatedContract(null);
+    setShowPurchase(true);
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const handleCreateContract = async () => {
+    setSubmitting(true);
+    try {
+      const { data } = await API.post('/purchase-contracts', {
+        propertyId: id,
+        advanceAmount: contractForm.advanceAmount,
+        handoverDate: contractForm.handoverDate || undefined,
+        paymentSchedule: contractForm.paymentSchedule,
+      });
+      setCreatedContract(data.contract);
+      // Accept terms
+      await API.put(`/purchase-contracts/${data.contract._id}/accept-terms`);
+      setCreatedContract(prev => ({ ...prev, status: 'pending_signatures', buyerTermsAcceptedAt: new Date() }));
+      setWizardStep(4);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create contract');
+    } finally { setSubmitting(false); }
+  };
+
+  const handleSign = async () => {
+    if (!canvasRef.current) return;
+    const signatureData = canvasRef.current.toDataURL('image/png');
+    // Check if canvas is blank
+    const blank = document.createElement('canvas');
+    blank.width = canvasRef.current.width;
+    blank.height = canvasRef.current.height;
+    if (signatureData === blank.toDataURL()) { toast.error('Please draw your signature'); return; }
+
+    setSubmitting(true);
+    try {
+      await API.post(`/purchase-contracts/${createdContract._id}/sign`, { signatureData });
+      toast.success('Contract signed successfully!');
+      setWizardStep(5);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Signing failed');
+    } finally { setSubmitting(false); }
+  };
+
+  const handleDownloadPDF = () => {
+    const printContent = document.getElementById('contract-print-area');
+    if (!printContent) return;
+    const w = window.open('', '_blank');
+    w.document.write(`
+      <html><head><title>Purchase Contract - ${createdContract?.contractNumber || 'Draft'}</title>
+      <style>
+        body { font-family: Georgia, serif; margin: 40px; color: #111; }
+        * { box-sizing: border-box; }
+        @media print { body { margin: 20px; } }
+      </style></head><body>
+      ${printContent.innerHTML}
+      <script>window.onload = function(){ window.print(); }</script>
+      </body></html>
+    `);
+    w.document.close();
+  };
+
+  const STEPS = ['Property', 'Payment Terms', 'Preview', 'Sign', 'Confirm'];
+
+  const balance = (property?.price || 0) - Number(contractForm.advanceAmount || 0);
 
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
   if (!property) return <div className="loading-screen"><h2>Property not found</h2></div>;
@@ -217,6 +487,15 @@ const PropertyDetail = () => {
                   <a href={`tel:${property.ownerInfo.phone}`} className="btn btn-ghost btn-full"><FiPhone /> {property.ownerInfo.phone}</a>
                 )}
                 <a href={`https://wa.me/919999999999?text=Hi, I'm interested in ${property.title}`} target="_blank" rel="noopener noreferrer" className="btn btn-full" style={{ background: '#25d366', color: 'white' }}><FaWhatsapp /> WhatsApp</a>
+                {property.listingType === 'sale' && (
+                  <button
+                    className="btn btn-full"
+                    style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700, fontSize: '1rem', gap: 8 }}
+                    onClick={openPurchaseWizard}
+                  >
+                    <FiShoppingCart /> Purchase Now
+                  </button>
+                )}
               </div>
             </div>
 
@@ -243,7 +522,7 @@ const PropertyDetail = () => {
         </div>
       </div>
 
-      {/* Booking Modal */}
+      {/* ─── Booking Modal ─────────────────────────────────────────────────── */}
       {showBooking && (
         <div className="modal-overlay" onClick={() => setShowBooking(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -275,7 +554,7 @@ const PropertyDetail = () => {
         </div>
       )}
 
-      {/* Review Modal */}
+      {/* ─── Review Modal ──────────────────────────────────────────────────── */}
       {showReview && (
         <div className="modal-overlay" onClick={() => setShowReview(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -303,6 +582,232 @@ const PropertyDetail = () => {
               </form>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ─── Purchase Now Wizard ───────────────────────────────────────────── */}
+      {showPurchase && (
+        <div className="modal-overlay" onClick={() => { if (wizardStep < 5) setShowPurchase(false); }} style={{ alignItems: 'flex-start', overflowY: 'auto', padding: '40px 20px' }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '100%', maxHeight: 'none' }}>
+            {/* Wizard Header */}
+            <div style={{ padding: '24px 28px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Property Purchase Agreement Wizard</h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: 2 }}>{property.title}</div>
+                </div>
+                {wizardStep < 5 && <button className="modal-close" onClick={() => setShowPurchase(false)}><FiX /></button>}
+              </div>
+              {/* Stepper */}
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 28 }}>
+                {STEPS.map((label, i) => {
+                  const step = i + 1;
+                  const done = step < wizardStep;
+                  const active = step === wizardStep;
+                  return (
+                    <React.Fragment key={label}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem', background: done ? '#16a34a' : active ? 'var(--primary)' : '#e5e7eb', color: done || active ? 'white' : 'var(--gray-500)', marginBottom: 6, transition: 'all 0.2s' }}>
+                          {done ? <FiCheckCircle size={16} /> : step}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: active ? 'var(--primary)' : 'var(--gray-400)', fontWeight: active ? 700 : 400, textAlign: 'center' }}>{label}</div>
+                      </div>
+                      {i < STEPS.length - 1 && <div style={{ height: 2, flex: 2, background: done ? '#16a34a' : '#e5e7eb', margin: '0 4px', marginBottom: 22, transition: 'background 0.2s' }} />}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Step Content */}
+            <div style={{ padding: '0 28px 28px' }}>
+
+              {/* STEP 1: Property & Parties */}
+              {wizardStep === 1 && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                    <div style={{ background: '#f0f7ff', padding: 16, borderRadius: 10, borderLeft: '4px solid #2563eb' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2563eb', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Buyer (You)</div>
+                      <div style={{ fontWeight: 700 }}>{user?.firstName} {user?.lastName}</div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)', marginTop: 4 }}>{user?.email}</div>
+                      {user?.phone && <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>{user?.phone}</div>}
+                    </div>
+                    <div style={{ background: '#f0fdf4', padding: 16, borderRadius: 10, borderLeft: '4px solid #16a34a' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Seller / Owner</div>
+                      <div style={{ fontWeight: 700 }}>{property.ownerInfo?.name || 'Owner'}</div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)', marginTop: 4 }}>{property.ownerInfo?.email || '—'}</div>
+                      {property.ownerInfo?.phone && <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>{property.ownerInfo.phone}</div>}
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Property Being Purchased</div>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{property.title}</div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: 4 }}><FiMapPin size={12} style={{ marginRight: 4 }} />{[property.address?.line1, property.address?.city, property.address?.state].filter(Boolean).join(', ')}</div>
+                    <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
+                      {property.features?.bedrooms > 0 && <span style={{ fontSize: '0.8rem' }}>🛏 {property.features.bedrooms} BHK</span>}
+                      {property.features?.builtupArea > 0 && <span style={{ fontSize: '0.8rem' }}>📐 {property.features.builtupArea} sqft</span>}
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>💰 {formatPrice(property.price)}</span>
+                    </div>
+                  </div>
+
+                  <button className="btn btn-primary btn-full" onClick={() => setWizardStep(2)}>
+                    Continue to Payment Terms <FiChevronRight />
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2: Payment Terms */}
+              {wizardStep === 2 && (
+                <div>
+                  <div style={{ background: 'white', border: '1px solid var(--gray-200)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Total Purchase Price</span>
+                      <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--primary)' }}>{formatPrice(property.price)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Token/Advance (editable)</span>
+                      <span style={{ fontWeight: 600 }}>{formatPrice(contractForm.advanceAmount || 0)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--gray-100)', paddingTop: 8, marginTop: 8 }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>Balance Amount</span>
+                      <span style={{ fontWeight: 800, color: balance >= 0 ? '#16a34a' : '#ef4444' }}>{formatPrice(Math.max(0, balance))}</span>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Token / Advance Amount (₹) *</label>
+                    <input type="number" className="form-input" min={0} max={property.price} value={contractForm.advanceAmount} onChange={e => setContractForm(p => ({ ...p, advanceAmount: e.target.value }))} />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: 4 }}>Typically 10-20% of total price</div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Expected Property Handover Date</label>
+                    <input type="date" className="form-input" min={new Date().toISOString().split('T')[0]} value={contractForm.handoverDate} onChange={e => setContractForm(p => ({ ...p, handoverDate: e.target.value }))} />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button className="btn btn-outline btn-full" onClick={() => setWizardStep(1)}><FiChevronLeft /> Back</button>
+                    <button className="btn btn-primary btn-full" onClick={() => setWizardStep(3)} disabled={!contractForm.advanceAmount || contractForm.advanceAmount > property.price}>
+                      Preview Contract <FiChevronRight />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Contract Preview */}
+              {wizardStep === 3 && (
+                <div>
+                  <div style={{ border: '1px solid var(--gray-200)', borderRadius: 10, padding: 20, maxHeight: 420, overflowY: 'auto', marginBottom: 20, background: 'white' }}>
+                    <ContractDocument
+                      contract={{ ...contractForm, purchasePrice: property.price, balanceAmount: balance, buyerName: `${user?.firstName} ${user?.lastName}`, buyerEmail: user?.email, ownerName: property.ownerInfo?.name, ownerEmail: property.ownerInfo?.email }}
+                      property={property}
+                      buyer={user}
+                    />
+                  </div>
+
+                  <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', marginBottom: 20, padding: 14, background: '#f0fdf4', borderRadius: 8, border: `2px solid ${contractForm.termsAccepted ? '#16a34a' : '#d1d5db'}` }}>
+                    <input type="checkbox" checked={contractForm.termsAccepted} onChange={e => setContractForm(p => ({ ...p, termsAccepted: e.target.checked }))} style={{ marginTop: 3, accentColor: '#16a34a', width: 16, height: 16, flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.85rem', color: 'var(--gray-700)' }}>
+                      I have read and agree to all the <strong>Terms & Conditions</strong>, <strong>Cancellation Policy</strong>, and <strong>Payment Schedule</strong> stated in this contract. I understand this constitutes a legally binding agreement.
+                    </span>
+                  </label>
+
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button className="btn btn-outline btn-full" onClick={() => setWizardStep(2)}><FiChevronLeft /> Back</button>
+                    <button
+                      className="btn btn-full"
+                      style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700 }}
+                      disabled={!contractForm.termsAccepted || submitting}
+                      onClick={handleCreateContract}
+                    >
+                      {submitting ? 'Creating Contract...' : (<><FiFileText /> Accept & Continue to Sign</>)}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: Digital Signature */}
+              {wizardStep === 4 && (
+                <div>
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 14, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <FiCheckCircle color="#16a34a" />
+                      <span style={{ fontSize: '0.85rem', color: '#15803d', fontWeight: 600 }}>Contract Created: {createdContract?.contractNumber}</span>
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: '0.9rem', color: 'var(--gray-600)', marginBottom: 16 }}>
+                    Please sign below using your mouse or finger to digitally sign the contract.
+                  </p>
+
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <label className="form-label" style={{ margin: 0 }}>Your Digital Signature *</label>
+                      <button type="button" onClick={clearSignature} style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}><FiEdit3 size={12} /> Clear</button>
+                    </div>
+                    <SignatureCanvas canvasRef={canvasRef} />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: 6 }}>Draw your signature in the box above</div>
+                  </div>
+
+                  <div style={{ background: '#fffbeb', borderRadius: 8, padding: 12, marginBottom: 20, fontSize: '0.8rem', color: '#92400e' }}>
+                    <strong>Legal Notice:</strong> By clicking "Sign Contract", you acknowledge that this digital signature is legally equivalent to a handwritten signature and you are entering into a binding purchase agreement.
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button className="btn btn-outline btn-full" onClick={() => setWizardStep(3)}><FiChevronLeft /> Back</button>
+                    <button
+                      className="btn btn-full"
+                      style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700 }}
+                      disabled={submitting}
+                      onClick={handleSign}
+                    >
+                      {submitting ? 'Signing...' : <><FiEdit3 /> Sign Contract</>}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 5: Confirmation */}
+              {wizardStep === 5 && (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                    <FiCheckCircle size={40} color="#16a34a" />
+                  </div>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 8, color: '#15803d' }}>Contract Signed Successfully!</h3>
+                  <p style={{ color: 'var(--gray-500)', marginBottom: 24 }}>
+                    Your purchase contract has been signed and submitted for review. The admin will verify and approve the contract.
+                  </p>
+
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'left' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: '0.85rem' }}>
+                      <div><span style={{ color: 'var(--gray-500)' }}>Contract ID</span><br /><strong>{createdContract?.contractNumber}</strong></div>
+                      <div><span style={{ color: 'var(--gray-500)' }}>Status</span><br /><span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.78rem' }}>Pending Approval</span></div>
+                      <div><span style={{ color: 'var(--gray-500)' }}>Property</span><br /><strong>{property.title}</strong></div>
+                      <div><span style={{ color: 'var(--gray-500)' }}>Purchase Price</span><br /><strong>{formatPrice(property.price)}</strong></div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button className="btn btn-outline" onClick={handleDownloadPDF} style={{ display: 'none' }}>
+                      <FiDownload /> Download PDF
+                    </button>
+                    <button className="btn btn-primary" onClick={() => { setShowPurchase(false); navigate('/my-contracts'); }}>
+                      View My Contracts
+                    </button>
+                    <button className="btn btn-ghost" onClick={() => setShowPurchase(false)}>Close</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden contract document for PDF printing */}
+      {createdContract && (
+        <div style={{ display: 'none' }}>
+          <ContractDocument contract={createdContract} property={property} buyer={user} />
         </div>
       )}
     </div>

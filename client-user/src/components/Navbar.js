@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiMenu, FiX, FiUser, FiLogOut, FiHeart, FiCalendar, FiHome } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut, FiHeart, FiCalendar, FiHome, FiFileText } from 'react-icons/fi';
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -45,6 +45,7 @@ const Navbar = () => {
                   <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 8, background: 'white', borderRadius: 12, boxShadow: 'var(--shadow-lg)', minWidth: 200, overflow: 'hidden', zIndex: 200 }}>
                     <Link to="/dashboard" onClick={() => setDropdown(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', fontSize: '0.9rem', borderBottom: '1px solid var(--gray-100)', color: 'var(--dark)' }}><FiHome /> Dashboard</Link>
                     <Link to="/bookings" onClick={() => setDropdown(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', fontSize: '0.9rem', borderBottom: '1px solid var(--gray-100)', color: 'var(--dark)' }}><FiCalendar /> My Bookings</Link>
+                    <Link to="/my-contracts" onClick={() => setDropdown(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', fontSize: '0.9rem', borderBottom: '1px solid var(--gray-100)', color: 'var(--dark)' }}><FiFileText /> My Contracts</Link>
                     <Link to="/profile" onClick={() => setDropdown(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', fontSize: '0.9rem', borderBottom: '1px solid var(--gray-100)', color: 'var(--dark)' }}><FiUser /> Profile</Link>
                     <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', fontSize: '0.9rem', color: '#ef4444', background: 'none', border: 'none', width: '100%', fontFamily: 'inherit' }}><FiLogOut /> Logout</button>
                   </div>

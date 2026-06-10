@@ -29,6 +29,7 @@ const FinTrans = lazy(() => import('./pages/FinTrans'));
 const FinTransForm = lazy(() => import('./pages/FinTransForm'));
 const ServTrans = lazy(() => import('./pages/ServTrans'));
 const ServTransForm = lazy(() => import('./pages/ServTransForm'));
+const PurchaseContracts = lazy(() => import('./pages/PurchaseContracts'));
 
 const Loading = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -82,6 +83,7 @@ function App() {
                     <Route path="/servtrans" element={<ServTrans />} />
                     <Route path="/servtrans/new" element={<ServTransForm />} />
                     <Route path="/servtrans/edit/:id" element={<ServTransForm />} />
+                    <Route path="/purchase-contracts" element={<PurchaseContracts />} />
                   </Routes>
                 </AdminLayout>
               </ProtectedRoute>

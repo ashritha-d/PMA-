@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { FiGrid, FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare, FiStar, FiFileText, FiBarChart2, FiLogOut, FiBell, FiMenu, FiTag, FiUserCheck, FiKey, FiClipboard, FiTool } from 'react-icons/fi';
+import { FiGrid, FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare, FiStar, FiFileText, FiBarChart2, FiLogOut, FiBell, FiMenu, FiTag, FiUserCheck, FiKey, FiClipboard, FiTool, FiShoppingCart } from 'react-icons/fi';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import API from '../api/axios';
 import { io } from 'socket.io-client';
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { path: '/owners', icon: <FiUserCheck />, label: 'Owners' },
   { path: '/tenants', icon: <FiKey />, label: 'Tenants' },
   { path: '/contracts', icon: <FiClipboard />, label: 'Contracts' },
+  { path: '/purchase-contracts', icon: <FiShoppingCart />, label: 'Purchase Contracts' },
   { path: '/fintrans', icon: <FiDollarSign />, label: 'Transactions' },
   { path: '/servtrans', icon: <FiTool />, label: 'Service Requests' },
   { section: 'Management' },
@@ -61,7 +62,7 @@ const AdminLayout = ({ children }) => {
     setShowNotifs(false);
   };
 
-  const PAGE_TITLES = { '/': 'Dashboard', '/properties': 'Properties', '/categories': 'Categories', '/bookings': 'Bookings', '/payments': 'Payments', '/users': 'Users', '/inquiries': 'Inquiries', '/reviews': 'Reviews', '/cms': 'CMS / Content', '/reports': 'Reports & Analytics', '/owners': 'Owners', '/owners/new': 'Add Owner', '/tenants': 'Tenants', '/tenants/new': 'Add Tenant', '/contracts': 'Contracts', '/contracts/new': 'New Contract', '/fintrans': 'Financial Transactions', '/fintrans/new': 'Add Transaction', '/servtrans': 'Service Requests', '/servtrans/new': 'New Service Request' };
+  const PAGE_TITLES = { '/': 'Dashboard', '/properties': 'Properties', '/categories': 'Categories', '/bookings': 'Bookings', '/payments': 'Payments', '/users': 'Users', '/inquiries': 'Inquiries', '/reviews': 'Reviews', '/cms': 'CMS / Content', '/reports': 'Reports & Analytics', '/owners': 'Owners', '/owners/new': 'Add Owner', '/tenants': 'Tenants', '/tenants/new': 'Add Tenant', '/contracts': 'Contracts', '/contracts/new': 'New Contract', '/fintrans': 'Financial Transactions', '/fintrans/new': 'Add Transaction', '/servtrans': 'Service Requests', '/servtrans/new': 'New Service Request', '/purchase-contracts': 'Purchase Contract Management' };
   const title = PAGE_TITLES[location.pathname] || 'Admin Panel';
 
   return (

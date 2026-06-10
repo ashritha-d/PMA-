@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiHome, FiCalendar, FiHeart, FiDollarSign, FiUser, FiMessageSquare, FiTrendingUp, FiCheckCircle } from 'react-icons/fi';
+import { FiHome, FiCalendar, FiHeart, FiDollarSign, FiUser, FiMessageSquare, FiTrendingUp, FiCheckCircle, FiFileText } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ bookings: 0, favorites: 0, payments: 0, inquiries: 0 });
+  const [stats, setStats] = useState({ bookings: 0, favorites: 0, payments: 0, inquiries: 0, contracts: 0 });
   const [propStats, setPropStats] = useState({ total: 0, available: 0, occupied: 0, monthlyIncome: 0 });
   const [recentBookings, setRecentBookings] = useState([]);
   const [recentPayments, setRecentPayments] = useState([]);
+  const [recentContracts, setRecentContracts] = useState([]);
   const [, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,10 +20,12 @@ const Dashboard = () => {
       API.get('/payments/my'),
       API.get('/inquiries/my'),
       API.get('/user-properties/my/stats').catch(() => ({ data: { stats: {} } })),
-    ]).then(([b, f, p, i, ps]) => {
-      setStats({ bookings: b.data.bookings?.length || 0, favorites: f.data.favorites?.length || 0, payments: p.data.payments?.length || 0, inquiries: i.data.inquiries?.length || 0 });
+      API.get('/purchase-contracts/my').catch(() => ({ data: { contracts: [] } })),
+    ]).then(([b, f, p, i, ps, c]) => {
+      setStats({ bookings: b.data.bookings?.length || 0, favorites: f.data.favorites?.length || 0, payments: p.data.payments?.length || 0, inquiries: i.data.inquiries?.length || 0, contracts: c.data.contracts?.length || 0 });
       setRecentBookings(b.data.bookings?.slice(0, 5) || []);
       setRecentPayments(p.data.payments?.slice(0, 5) || []);
+      setRecentContracts(c.data.contracts?.slice(0, 3) || []);
       setPropStats(ps.data.stats || {});
     }).finally(() => setLoading(false));
   }, []);
@@ -45,6 +48,7 @@ const Dashboard = () => {
             { icon: <FiHeart size={24} />, label: 'Saved Properties', value: stats.favorites, color: '#fee2e2', link: '/favorites' },
             { icon: <FiDollarSign size={24} />, label: 'Payments', value: stats.payments, color: '#d1fae5', link: '/payments' },
             { icon: <FiMessageSquare size={24} />, label: 'Inquiries', value: stats.inquiries, color: '#fef3c7', link: '/contact' },
+            { icon: <FiFileText size={24} />, label: 'My Contracts', value: stats.contracts, color: '#f3e8ff', link: '/my-contracts' },
           ].map((s, i) => (
             <Link to={s.link} key={i} style={{ textDecoration: 'none' }}>
               <div className="card card-body" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -126,12 +130,51 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Recent Contracts */}
+        {recentContracts.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontWeight: 700 }}>Recent Purchase Contracts</h3>
+              <Link to="/my-contracts" style={{ fontSize: '0.85rem', color: 'var(--primary)' }}>View All →</Link>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {recentContracts.map(c => {
+                const statusColors = { draft: '#6b7280', pending_signatures: '#92400e', active: '#065f46', completed: '#1e40af', cancelled: '#991b1b' };
+                const statusBgs = { draft: '#f3f4f6', pending_signatures: '#fef3c7', active: '#d1fae5', completed: '#dbeafe', cancelled: '#fee2e2' };
+                const color = statusColors[c.status] || '#6b7280';
+                const bg = statusBgs[c.status] || '#f3f4f6';
+                const label = { draft: 'Draft', pending_signatures: 'Pending Approval', active: 'Active', completed: 'Completed', cancelled: 'Cancelled' }[c.status] || c.status;
+                return (
+                  <div key={c._id} style={{ background: 'white', borderRadius: 12, padding: '16px 20px', boxShadow: 'var(--shadow-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f0f7ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FiFileText color="var(--primary)" />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{c.propertyTitle}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>{c.contractNumber} · {new Date(c.createdAt).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--primary)' }}>
+                        ₹{Number(c.purchasePrice || 0).toLocaleString()}
+                      </span>
+                      <span style={{ background: bg, color, padding: '4px 10px', borderRadius: 20, fontSize: '0.73rem', fontWeight: 600 }}>{label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div style={{ marginTop: 40 }}>
           <h3 style={{ fontWeight: 700, marginBottom: 20 }}>Quick Actions</h3>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Link to="/properties" className="btn btn-primary"><FiHome /> Browse Properties</Link>
             <Link to="/bookings" className="btn btn-outline"><FiCalendar /> My Bookings</Link>
+            <Link to="/my-contracts" className="btn btn-outline"><FiFileText /> My Contracts</Link>
             <Link to="/favorites" className="btn btn-outline"><FiHeart /> Saved Properties</Link>
             <Link to="/profile" className="btn btn-outline"><FiUser /> Edit Profile</Link>
           </div>
