@@ -88,9 +88,9 @@ const ContractDocument = ({ contract, property, buyer }) => {
         </div>
         <div style={{ background: '#f0fdf4', padding: 16, borderRadius: 8, borderLeft: '4px solid #16a34a' }}>
           <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.85rem', color: '#16a34a' }}>SELLER / OWNER</div>
-          <div><strong>{contract.ownerName || property?.ownerInfo?.name || 'Owner Name'}</strong></div>
-          <div style={{ fontSize: '0.82rem', color: '#444', marginTop: 4 }}>{contract.ownerEmail || property?.ownerInfo?.email || ''}</div>
-          {(contract.ownerPhone || property?.ownerInfo?.phone) && <div style={{ fontSize: '0.82rem', color: '#444' }}>{contract.ownerPhone || property?.ownerInfo?.phone}</div>}
+          <div><strong>{contract.ownerName || property?.ownerInfo?.name || (property?.createdByUser ? `${property.createdByUser.firstName} ${property.createdByUser.lastName}` : 'PropManage Agent')}</strong></div>
+          <div style={{ fontSize: '0.82rem', color: '#444', marginTop: 4 }}>{contract.ownerEmail || property?.ownerInfo?.email || property?.createdByUser?.email || ''}</div>
+          {(contract.ownerPhone || property?.ownerInfo?.phone || property?.createdByUser?.phone) && <div style={{ fontSize: '0.82rem', color: '#444' }}>{contract.ownerPhone || property?.ownerInfo?.phone || property?.createdByUser?.phone}</div>}
         </div>
       </div>
 
@@ -632,9 +632,18 @@ const PropertyDetail = () => {
                     </div>
                     <div style={{ background: '#f0fdf4', padding: 16, borderRadius: 10, borderLeft: '4px solid #16a34a' }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Seller / Owner</div>
-                      <div style={{ fontWeight: 700 }}>{property.ownerInfo?.name || 'Owner'}</div>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)', marginTop: 4 }}>{property.ownerInfo?.email || '—'}</div>
-                      {property.ownerInfo?.phone && <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>{property.ownerInfo.phone}</div>}
+                      <div style={{ fontWeight: 700 }}>
+                        {property.ownerInfo?.name ||
+                          (property.createdByUser ? `${property.createdByUser.firstName} ${property.createdByUser.lastName}` : 'PropManage Agent')}
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)', marginTop: 4 }}>
+                        {property.ownerInfo?.email || property.createdByUser?.email || '—'}
+                      </div>
+                      {(property.ownerInfo?.phone || property.createdByUser?.phone) && (
+                        <div style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>
+                          {property.ownerInfo?.phone || property.createdByUser?.phone}
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -36,7 +36,9 @@ router.get('/', optionalAuth, async (req, res) => {
 
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const property = await Property.findById(req.params.id).populate('category', 'name icon');
+    const property = await Property.findById(req.params.id)
+      .populate('category', 'name icon')
+      .populate('createdByUser', 'firstName lastName email phone');
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
     await Property.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
     res.json({ success: true, property });

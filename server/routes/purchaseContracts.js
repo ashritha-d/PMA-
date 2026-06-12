@@ -13,7 +13,8 @@ router.post('/', protect, async (req, res) => {
   try {
     const { propertyId, advanceAmount, handoverDate, paymentSchedule } = req.body;
 
-    const property = await Property.findById(propertyId);
+    const property = await Property.findById(propertyId)
+      .populate('createdByUser', 'firstName lastName email phone');
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
 
     const purchasePrice = property.price;
@@ -22,9 +23,16 @@ router.post('/', protect, async (req, res) => {
 
     const addrParts = [property.address?.line1, property.address?.city, property.address?.state].filter(Boolean);
 
+    // Resolve owner info: prefer ownerInfo, fallback to createdByUser
+    const ownerUser = property.createdByUser;
+    const ownerName = property.ownerInfo?.name || (ownerUser ? `${ownerUser.firstName} ${ownerUser.lastName}` : '');
+    const ownerEmail = property.ownerInfo?.email || ownerUser?.email || '';
+    const ownerPhone = property.ownerInfo?.phone || ownerUser?.phone || '';
+
     const contract = await PurchaseContract.create({
       propertyId,
       buyerId: req.user._id,
+      ownerId: ownerUser?._id || undefined,
       purchasePrice,
       advanceAmount: advance,
       balanceAmount: balance,
@@ -37,9 +45,9 @@ router.post('/', protect, async (req, res) => {
       buyerName: `${req.user.firstName} ${req.user.lastName}`,
       buyerEmail: req.user.email,
       buyerPhone: req.user.phone || '',
-      ownerName: property.ownerInfo?.name || '',
-      ownerEmail: property.ownerInfo?.email || '',
-      ownerPhone: property.ownerInfo?.phone || '',
+      ownerName,
+      ownerEmail,
+      ownerPhone,
       auditLog: [{
         action: 'contract_created',
         performedBy: req.user._id,
