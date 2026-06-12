@@ -487,15 +487,13 @@ const PropertyDetail = () => {
                   <a href={`tel:${property.ownerInfo.phone}`} className="btn btn-ghost btn-full"><FiPhone /> {property.ownerInfo.phone}</a>
                 )}
                 <a href={`https://wa.me/919999999999?text=Hi, I'm interested in ${property.title}`} target="_blank" rel="noopener noreferrer" className="btn btn-full" style={{ background: '#25d366', color: 'white' }}><FaWhatsapp /> WhatsApp</a>
-                {property.listingType === 'sale' && (
-                  <button
-                    className="btn btn-full"
-                    style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700, fontSize: '1rem', gap: 8 }}
-                    onClick={openPurchaseWizard}
-                  >
-                    <FiShoppingCart /> Purchase Now
-                  </button>
-                )}
+                <button
+                  className="btn btn-full"
+                  style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700, fontSize: '1rem', gap: 8 }}
+                  onClick={openPurchaseWizard}
+                >
+                  <FiShoppingCart /> Purchase Now
+                </button>
               </div>
             </div>
 
