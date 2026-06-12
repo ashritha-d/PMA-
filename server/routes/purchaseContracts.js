@@ -63,7 +63,7 @@ router.post('/', protect, async (req, res) => {
       await Notification.create({
         recipient: admin._id,
         recipientModel: 'Admin',
-        type: 'general',
+        type: 'system',
         title: 'New Purchase Contract',
         message: `${req.user.firstName} initiated a purchase contract for "${property.title}"`,
       });
@@ -200,7 +200,7 @@ router.post('/:id/sign', protect, async (req, res) => {
       await Notification.create({
         recipient: admin._id,
         recipientModel: 'Admin',
-        type: 'general',
+        type: 'system',
         title: 'Contract Signed by Buyer',
         message: `Contract ${contract.contractNumber} has been signed by the buyer. Awaiting admin approval.`,
       });
@@ -239,7 +239,7 @@ router.put('/:id/status', adminProtect, async (req, res) => {
     await Notification.create({
       recipient: contract.buyerId,
       recipientModel: 'User',
-      type: 'general',
+      type: 'system',
       title: 'Purchase Contract Update',
       message: `Your contract ${contract.contractNumber} status has been updated to: ${status.replace('_', ' ')}.`,
     });
