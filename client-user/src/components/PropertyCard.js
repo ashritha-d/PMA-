@@ -3,10 +3,17 @@ import { Link } from 'react-router-dom';
 import { FiMaximize, FiMapPin, FiHeart } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
+const API_BASE = process.env.REACT_APP_API_URL || '';
+const getImgUrl = (url) => {
+  if (!url) return 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&q=80';
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
+};
+
 const PropertyCard = ({ property }) => {
   const { user, toggleFavorite } = useAuth();
   const isFav = user?.favorites?.includes(property._id);
-  const img = property.images?.[0]?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&q=80';
+  const img = getImgUrl(property.images?.[0]?.url);
 
   const formatPrice = (p) => p >= 10000000 ? `₹${(p / 10000000).toFixed(1)}Cr` : p >= 100000 ? `₹${(p / 100000).toFixed(1)}L` : `₹${p?.toLocaleString()}`;
 

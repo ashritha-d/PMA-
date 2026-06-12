@@ -344,7 +344,11 @@ const PropertyDetail = () => {
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
   if (!property) return <div className="loading-screen"><h2>Property not found</h2></div>;
 
-  const images = property.images?.length > 0 ? property.images : [{ url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80' }];
+  const API_BASE = process.env.REACT_APP_API_URL || '';
+  const resolveImg = (url) => url?.startsWith('http') ? url : `${API_BASE}${url}`;
+  const images = property.images?.length > 0
+    ? property.images.map(img => ({ ...img, url: resolveImg(img.url) }))
+    : [{ url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80' }];
 
   return (
     <div style={{ background: 'var(--gray-50)', paddingBottom: 80 }}>
