@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiFileText, FiHome, FiCalendar, FiDollarSign, FiDownload, FiEye, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle } from 'react-icons/fi';
-import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
 
@@ -168,7 +167,6 @@ const ContractDetailModal = ({ contract, onClose }) => {
 };
 
 const MyContracts = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
