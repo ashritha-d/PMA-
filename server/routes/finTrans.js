@@ -133,7 +133,7 @@ router.post('/', adminProtect, upload.single('chequeImage'), async (req, res) =>
   try {
     const data = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
     if (req.file) {
-      data.chequeImage = { url: `/uploads/documents/${req.file.filename}`, filename: req.file.filename };
+      data.chequeImage = { url: req.file.path?.startsWith('http') ? req.file.path : `/uploads/documents/${req.file.filename}`, filename: req.file.filename };
     }
     const tx = await FinTrans.create({ ...data, createdBy: req.admin._id });
     res.status(201).json({ success: true, transaction: tx });
@@ -147,7 +147,7 @@ router.put('/:id', adminProtect, upload.single('chequeImage'), async (req, res) 
   try {
     const data = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
     if (req.file) {
-      data.chequeImage = { url: `/uploads/documents/${req.file.filename}`, filename: req.file.filename };
+      data.chequeImage = { url: req.file.path?.startsWith('http') ? req.file.path : `/uploads/documents/${req.file.filename}`, filename: req.file.filename };
     }
     const tx = await FinTrans.findByIdAndUpdate(req.params.id, { ...data, updatedAt: Date.now() }, { new: true, runValidators: true });
     if (!tx) return res.status(404).json({ success: false, message: 'Transaction not found' });

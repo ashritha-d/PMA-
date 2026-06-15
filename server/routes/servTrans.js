@@ -74,7 +74,7 @@ router.post('/', adminProtect, upload.fields(imgFields), async (req, res) => {
   try {
     const data = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
     const files = req.files || {};
-    const toArr = (field) => (files[field] || []).map(f => ({ url: `/uploads/documents/${f.filename}`, filename: f.filename }));
+    const toArr = (field) => (files[field] || []).map(f => ({ url: f.path?.startsWith('http') ? f.path : `/uploads/documents/${f.filename}`, filename: f.filename }));
     data.beforeImages = toArr('beforeImages');
     data.afterImages  = toArr('afterImages');
     const request = await ServTrans.create({ ...data, createdBy: req.admin._id });
@@ -93,7 +93,7 @@ router.put('/:id', adminProtect, upload.fields(imgFields), async (req, res) => {
     const existing = await ServTrans.findById(req.params.id);
     if (!existing) return res.status(404).json({ success: false, message: 'Service request not found' });
 
-    const toArr = (field) => (files[field] || []).map(f => ({ url: `/uploads/documents/${f.filename}`, filename: f.filename }));
+    const toArr = (field) => (files[field] || []).map(f => ({ url: f.path?.startsWith('http') ? f.path : `/uploads/documents/${f.filename}`, filename: f.filename }));
     const newBefore = toArr('beforeImages');
     const newAfter  = toArr('afterImages');
 

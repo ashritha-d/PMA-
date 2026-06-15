@@ -10,7 +10,7 @@ const upload = require('../middleware/upload');
 router.post('/', protect, upload.single('screenshot'), async (req, res) => {
   try {
     const data = { ...req.body, user: req.user._id };
-    if (req.file) data.screenshotUrl = `/uploads/documents/${req.file.filename}`;
+    if (req.file) data.screenshotUrl = req.file.path?.startsWith('http') ? req.file.path : `/uploads/documents/${req.file.filename}`;
 
     const payment = await Payment.create(data);
 

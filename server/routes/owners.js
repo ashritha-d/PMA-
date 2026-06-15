@@ -79,7 +79,7 @@ router.post('/', adminProtect, upload.fields(ownerDocFields), async (req, res) =
     docFields.forEach((field) => {
       if (files[field]?.[0]) {
         data[field] = {
-          url: `/uploads/documents/${files[field][0].filename}`,
+          url: files[field][0].path?.startsWith('http') ? files[field][0].path : `/uploads/documents/${files[field][0].filename}`,
           filename: files[field][0].filename,
         };
       }
@@ -102,7 +102,7 @@ router.put('/:id', adminProtect, upload.fields(ownerDocFields), async (req, res)
     docFields.forEach((field) => {
       if (files[field]?.[0]) {
         data[field] = {
-          url: `/uploads/documents/${files[field][0].filename}`,
+          url: files[field][0].path?.startsWith('http') ? files[field][0].path : `/uploads/documents/${files[field][0].filename}`,
           filename: files[field][0].filename,
         };
       }

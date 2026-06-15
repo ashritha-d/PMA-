@@ -162,7 +162,7 @@ router.post('/', protect, upload.fields([
 
     if (req.files?.images) {
       data.images = req.files.images.map(f => ({
-        url: `/uploads/properties/${f.filename}`,
+        url: f.path?.startsWith('http') ? f.path : `/uploads/properties/${f.filename}`,
         public_id: f.filename,
       }));
       data.coverImage = req.body.coverImage || data.images[0]?.url || '';
@@ -173,7 +173,7 @@ router.post('/', protect, upload.fields([
       const docTypes = [].concat(req.body.documentTypes || []);
       data.documents = req.files.documents.map((f, i) => ({
         name: docNames[i] || f.originalname,
-        url: `/uploads/documents/${f.filename}`,
+        url: f.path?.startsWith('http') ? f.path : `/uploads/documents/${f.filename}`,
         filename: f.filename,
         docType: docTypes[i] || 'other',
       }));
@@ -208,7 +208,7 @@ router.put('/:id', protect, upload.fields([
     // Merge new images with existing
     if (req.files?.images) {
       const newImages = req.files.images.map(f => ({
-        url: `/uploads/properties/${f.filename}`,
+        url: f.path?.startsWith('http') ? f.path : `/uploads/properties/${f.filename}`,
         public_id: f.filename,
       }));
       updates.images = [...(property.images || []), ...newImages];
@@ -224,7 +224,7 @@ router.put('/:id', protect, upload.fields([
       const docTypes = [].concat(req.body.documentTypes || []);
       const newDocs = req.files.documents.map((f, i) => ({
         name: docNames[i] || f.originalname,
-        url: `/uploads/documents/${f.filename}`,
+        url: f.path?.startsWith('http') ? f.path : `/uploads/documents/${f.filename}`,
         filename: f.filename,
         docType: docTypes[i] || 'other',
       }));

@@ -50,7 +50,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 router.post('/', adminProtect, upload.array('images', 10), async (req, res) => {
   try {
     const data = JSON.parse(req.body.data || '{}');
-    const images = (req.files || []).map(f => ({ url: `/uploads/properties/${f.filename}`, public_id: f.filename }));
+    const images = (req.files || []).map(f => ({ url: f.path?.startsWith('http') ? f.path : `/uploads/properties/${f.filename}`, public_id: f.filename }));
     const property = await Property.create({ ...data, images, createdBy: req.admin._id });
 
     const io = req.app.get('io');
