@@ -6,18 +6,17 @@ const Notification = require('../models/Notification');
 const { protect } = require('../middleware/auth');
 
 const sendOTPEmail = async (toEmail, userName, otp) => {
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      'accept': 'application/json',
-      'api-key': process.env.BREVO_API_KEY,
-      'content-type': 'application/json',
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      sender: { name: 'PropManage', email: process.env.EMAIL_USER },
-      to: [{ email: toEmail, name: userName }],
+      from: 'PropManage <onboarding@resend.dev>',
+      to: [toEmail],
       subject: 'Password Reset OTP – PropManage',
-      htmlContent: `
+      html: `
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;background:#f9f9f9;border-radius:12px;overflow:hidden;">
           <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:32px;text-align:center;">
             <h1 style="color:#fff;font-size:26px;margin:0;">Prop<span style="color:#e94560;">Manage</span></h1>
@@ -37,7 +36,7 @@ const sendOTPEmail = async (toEmail, userName, otp) => {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to send email');
+    throw new Error(err.message || err.name || 'Failed to send email');
   }
 };
 
