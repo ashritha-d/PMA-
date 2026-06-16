@@ -20,6 +20,7 @@ const UserPropertyDetail = lazy(() => import('./pages/UserPropertyDetail'));
 const Contact = lazy(() => import('./pages/Contact'));
 const About = lazy(() => import('./pages/About'));
 const MyContracts = lazy(() => import('./pages/MyContracts'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -44,6 +45,7 @@ function App() {
             <Route path="/properties/:id" element={<PropertyDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
