@@ -20,17 +20,25 @@ const ForgotPassword = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
       const res = await fetch(`${API}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
       toast.success('OTP sent to your email!');
       setStep(2);
     } catch (err) {
-      toast.error(err.message);
+      if (err.name === 'AbortError') {
+        toast.error('Server is waking up, please try again in a moment');
+      } else {
+        toast.error(err.message || 'Something went wrong');
+      }
     } finally {
       setLoading(false);
     }
