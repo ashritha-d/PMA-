@@ -1,43 +1,44 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { protect } = require('../middleware/auth');
 
-const sendOTPEmail = (toEmail, userName, otp) => {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    connectionTimeout: 10000,
-    socketTimeout: 10000,
-  });
-  const mailPromise = transporter.sendMail({
-    from: `"PropManage" <${process.env.EMAIL_USER}>`,
-    to: toEmail,
-    subject: 'Password Reset OTP – PropManage',
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;background:#f9f9f9;border-radius:12px;overflow:hidden;">
-        <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:32px;text-align:center;">
-          <h1 style="color:#fff;font-size:26px;margin:0;">Prop<span style="color:#e94560;">Manage</span></h1>
-        </div>
-        <div style="padding:32px;">
-          <h2 style="color:#1a1a2e;margin-bottom:8px;">Hi ${userName},</h2>
-          <p style="color:#555;margin-bottom:24px;">We received a request to reset your PropManage password. Use the OTP below — it expires in <strong>10 minutes</strong>.</p>
-          <div style="background:#1a1a2e;color:#fff;font-size:36px;font-weight:700;letter-spacing:10px;text-align:center;padding:20px;border-radius:8px;margin-bottom:24px;">
-            ${otp}
+const sendOTPEmail = async (toEmail, userName, otp) => {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': process.env.BREVO_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: 'PropManage', email: process.env.EMAIL_USER },
+      to: [{ email: toEmail, name: userName }],
+      subject: 'Password Reset OTP – PropManage',
+      htmlContent: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;background:#f9f9f9;border-radius:12px;overflow:hidden;">
+          <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:32px;text-align:center;">
+            <h1 style="color:#fff;font-size:26px;margin:0;">Prop<span style="color:#e94560;">Manage</span></h1>
           </div>
-          <p style="color:#888;font-size:13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+          <div style="padding:32px;">
+            <h2 style="color:#1a1a2e;margin-bottom:8px;">Hi ${userName},</h2>
+            <p style="color:#555;margin-bottom:24px;">We received a request to reset your PropManage password. Use the OTP below — it expires in <strong>10 minutes</strong>.</p>
+            <div style="background:#1a1a2e;color:#fff;font-size:36px;font-weight:700;letter-spacing:10px;text-align:center;padding:20px;border-radius:8px;margin-bottom:24px;">
+              ${otp}
+            </div>
+            <p style="color:#888;font-size:13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+          </div>
+          <div style="background:#eee;padding:16px;text-align:center;font-size:12px;color:#999;">© 2026 PropManage. All rights reserved.</div>
         </div>
-        <div style="background:#eee;padding:16px;text-align:center;font-size:12px;color:#999;">© 2026 PropManage. All rights reserved.</div>
-      </div>
-    `,
+      `,
+    }),
   });
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Email sending timed out. Please try again.')), 12000)
-  );
-  return Promise.race([mailPromise, timeoutPromise]);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to send email');
+  }
 };
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
