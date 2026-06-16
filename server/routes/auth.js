@@ -6,17 +6,19 @@ const Notification = require('../models/Notification');
 const { protect } = require('../middleware/auth');
 
 const sendOTPEmail = async (toEmail, userName, otp) => {
-  const res = await fetch('https://api.resend.com/emails', {
+  const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_SECRET_KEY}`).toString('base64');
+  const res = await fetch('https://api.mailjet.com/v3.1/send', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Authorization': `Basic ${auth}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'PropManage <onboarding@resend.dev>',
-      to: [toEmail],
-      subject: 'Password Reset OTP – PropManage',
-      html: `
+      Messages: [{
+        From: { Email: process.env.EMAIL_USER, Name: 'PropManage' },
+        To: [{ Email: toEmail, Name: userName }],
+        Subject: 'Password Reset OTP – PropManage',
+        HTMLPart: `
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;background:#f9f9f9;border-radius:12px;overflow:hidden;">
           <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:32px;text-align:center;">
             <h1 style="color:#fff;font-size:26px;margin:0;">Prop<span style="color:#e94560;">Manage</span></h1>
@@ -31,12 +33,13 @@ const sendOTPEmail = async (toEmail, userName, otp) => {
           </div>
           <div style="background:#eee;padding:16px;text-align:center;font-size:12px;color:#999;">© 2026 PropManage. All rights reserved.</div>
         </div>
-      `,
+        `,
+      }],
     }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.name || 'Failed to send email');
+    throw new Error(err.ErrorMessage || err.message || 'Failed to send email');
   }
 };
 
