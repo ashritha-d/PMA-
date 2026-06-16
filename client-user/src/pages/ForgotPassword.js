@@ -66,8 +66,6 @@ const ForgotPassword = () => {
     }
   };
 
-  const stepLabel = ['', 'Enter Email', 'Enter OTP', 'New Password', 'Done'];
-
   return (
     <div className="auth-page">
       <div style={{ width: '100%', padding: '0 24px' }}>
