@@ -6,12 +6,14 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { protect } = require('../middleware/auth');
 
-const sendOTPEmail = async (toEmail, userName, otp) => {
+const sendOTPEmail = (toEmail, userName, otp) => {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    connectionTimeout: 10000,
+    socketTimeout: 10000,
   });
-  await transporter.sendMail({
+  const mailPromise = transporter.sendMail({
     from: `"PropManage" <${process.env.EMAIL_USER}>`,
     to: toEmail,
     subject: 'Password Reset OTP – PropManage',
@@ -32,6 +34,10 @@ const sendOTPEmail = async (toEmail, userName, otp) => {
       </div>
     `,
   });
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Email sending timed out. Please try again.')), 12000)
+  );
+  return Promise.race([mailPromise, timeoutPromise]);
 };
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
