@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
+const axios = require('axios');
 const { optionalAuth } = require('../middleware/auth');
 const Property = require('../models/Property');
 const Category = require('../models/Category');
@@ -225,49 +226,38 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
       generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
     };
 
-    const geminiRes = await fetch(
+    const geminiRes = await axios.post(
       `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}&alt=sse`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }
+      body,
+      { responseType: 'stream', timeout: 30000 }
     );
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error('Gemini API error:', geminiRes.status, errText);
-      send({ type: 'error', message: 'AI service temporarily unavailable. Please try again.' });
-      res.end();
-      return;
-    }
-
-    const reader = geminiRes.body.getReader();
-    const decoder = new TextDecoder();
     let buf = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const raw = line.slice(6).trim();
-        if (!raw || raw === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(raw);
-          const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) send({ type: 'delta', text });
-        } catch (_) {}
-      }
-    }
+    await new Promise((resolve, reject) => {
+      geminiRes.data.on('data', (chunk) => {
+        buf += chunk.toString();
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw || raw === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(raw);
+            const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) send({ type: 'delta', text });
+          } catch (_) {}
+        }
+      });
+      geminiRes.data.on('end', resolve);
+      geminiRes.data.on('error', reject);
+    });
 
     send({ type: 'done' });
     res.end();
   } catch (err) {
-    console.error('AI chat error:', err.message);
+    const detail = err.response?.data || err.message;
+    console.error('AI chat error:', JSON.stringify(detail));
     send({ type: 'error', message: 'AI service temporarily unavailable. Please try again.' });
     res.end();
   }
