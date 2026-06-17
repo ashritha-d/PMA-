@@ -70,6 +70,7 @@ app.use('/api/contracts', require('./routes/contracts'));
 app.use('/api/fintrans', require('./routes/finTrans'));
 app.use('/api/servtrans', require('./routes/servTrans'));
 app.use('/api/purchase-contracts', require('./routes/purchaseContracts'));
+app.use('/api/ai', require('./routes/ai'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 

@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WhatsAppFloat from './components/WhatsAppFloat';
+import AIChat from './components/AIChat';
 
 const Home = lazy(() => import('./pages/Home'));
 const Properties = lazy(() => import('./pages/Properties'));
@@ -60,6 +61,7 @@ function App() {
         </Suspense>
         <Footer />
         <WhatsAppFloat />
+        <AIChat />
         <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '10px', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem' } }} />
       </BrowserRouter>
     </AuthProvider>
