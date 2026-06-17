@@ -20,7 +20,8 @@ const aiLimiter = rateLimit({
 });
 
 const GEMINI_MODEL = 'gemini-pro';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
+const GEMINI_URL = `${GEMINI_BASE}/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM_PROMPT = `You are PMA Smart AI Assistant for the PMA platform. Your primary responsibility is to help users search, discover, navigate, and interact with PMA services, resources, properties, agreements, and account information.
 
@@ -179,6 +180,18 @@ async function buildContext(user) {
   return ctx;
 }
 
+router.get('/models', async (req, res) => {
+  try {
+    const r = await axios.get(`${GEMINI_BASE}/v1beta/models`, {
+      headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    });
+    const names = r.data.models?.map(m => m.name) || [];
+    res.json({ models: names });
+  } catch (err) {
+    res.json({ error: err.response?.data?.error?.message || err.message });
+  }
+});
+
 router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
   const { messages } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -226,9 +239,9 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
     };
 
     const geminiRes = await axios.post(
-      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
+      GEMINI_URL,
       body,
-      { timeout: 30000 }
+      { timeout: 30000, headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY } }
     );
 
     const text = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
