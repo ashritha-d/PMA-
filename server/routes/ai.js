@@ -217,7 +217,7 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
     }
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       systemInstruction: SYSTEM_PROMPT,
     });
 
@@ -232,7 +232,7 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
     send({ type: 'done' });
     res.end();
   } catch (err) {
-    console.error('AI chat error:', err.message);
+    console.error('AI chat error:', err.message, err.status, JSON.stringify(err.errorDetails));
     send({ type: 'error', message: 'AI service temporarily unavailable. Please try again.' });
     res.end();
   }
