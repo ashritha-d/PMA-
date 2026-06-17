@@ -19,7 +19,7 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const GEMINI_MODEL = 'gemini-pro';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
 const GEMINI_URL = `${GEMINI_BASE}/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
