@@ -116,6 +116,14 @@ export default function AIChat() {
       let buffer = '';
       let accumulated = '';
 
+      const updateMsg = (text, streaming) => {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[placeholderIdx] = { role: 'assistant', content: text, streaming };
+          return updated;
+        });
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -130,23 +138,11 @@ export default function AIChat() {
             const payload = JSON.parse(line.slice(6));
             if (payload.type === 'delta') {
               accumulated += payload.text;
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[placeholderIdx] = { role: 'assistant', content: accumulated, streaming: true };
-                return updated;
-              });
+              updateMsg(accumulated, true);
             } else if (payload.type === 'done') {
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[placeholderIdx] = { role: 'assistant', content: accumulated, streaming: false };
-                return updated;
-              });
+              updateMsg(accumulated, false);
             } else if (payload.type === 'error') {
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[placeholderIdx] = { role: 'assistant', content: payload.message, streaming: false };
-                return updated;
-              });
+              updateMsg(payload.message, false);
             }
           } catch (_) {}
         }
