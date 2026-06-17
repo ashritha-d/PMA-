@@ -19,7 +19,7 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const GEMINI_MODEL = 'gemini-pro';
+const GEMINI_MODEL = 'gemini-1.5-flash-latest';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM_PROMPT = `You are PMA Smart AI Assistant for the PMA platform. Your primary responsibility is to help users search, discover, navigate, and interact with PMA services, resources, properties, agreements, and account information.
@@ -206,20 +206,19 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
       parts: [{ text: m.content }],
     }));
 
-    // Last message is the current user input, prepend context on first turn
+    // Last message is the current user input
     const lastMsg = messages[messages.length - 1];
-    const userText = messages.length === 1
-      ? `${contextBlock}\n\n${lastMsg.content}`
-      : lastMsg.content;
+    const userText = lastMsg.content;
 
-    // On multi-turn, inject context into the first history message
-    if (history.length > 0 && history[0].role === 'user') {
-      history[0].parts[0].text = `${contextBlock}\n\n${history[0].parts[0].text}`;
-    }
+    // Inject system prompt + context as a synthetic first exchange
+    const systemTurn = [
+      { role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\n${contextBlock}\n\nAcknowledge you understand your role.` }] },
+      { role: 'model', parts: [{ text: 'Understood. I am PMA Smart AI Assistant, ready to help with property search, lease details, payments, and platform navigation using the provided data.' }] },
+    ];
 
     const body = {
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [
+        ...systemTurn,
         ...history,
         { role: 'user', parts: [{ text: userText }] },
       ],
