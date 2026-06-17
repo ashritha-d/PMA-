@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { optionalAuth } = require('../middleware/auth');
 const Property = require('../models/Property');
 const Category = require('../models/Category');
@@ -19,7 +18,8 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent`;
 
 const SYSTEM_PROMPT = `You are PMA Smart AI Assistant for the PMA platform. Your primary responsibility is to help users search, discover, navigate, and interact with PMA services, resources, properties, agreements, and account information.
 
@@ -216,23 +216,58 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
       history[0].parts[0].text = `${contextBlock}\n\n${history[0].parts[0].text}`;
     }
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: SYSTEM_PROMPT,
-    });
+    const body = {
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [
+        ...history,
+        { role: 'user', parts: [{ text: userText }] },
+      ],
+      generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+    };
 
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessageStream(userText);
+    const geminiRes = await fetch(
+      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}&alt=sse`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
 
-    for await (const chunk of result.stream) {
-      const text = chunk.text();
-      if (text) send({ type: 'delta', text });
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      console.error('Gemini API error:', geminiRes.status, errText);
+      send({ type: 'error', message: 'AI service temporarily unavailable. Please try again.' });
+      res.end();
+      return;
+    }
+
+    const reader = geminiRes.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(raw);
+          const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) send({ type: 'delta', text });
+        } catch (_) {}
+      }
     }
 
     send({ type: 'done' });
     res.end();
   } catch (err) {
-    console.error('AI chat error:', err.message, err.status, JSON.stringify(err.errorDetails));
+    console.error('AI chat error:', err.message);
     send({ type: 'error', message: 'AI service temporarily unavailable. Please try again.' });
     res.end();
   }
