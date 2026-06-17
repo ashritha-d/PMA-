@@ -231,11 +231,8 @@ export default function AIChat() {
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         ) : (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2C6.48 2 2 6.02 2 11c0 2.67 1.19 5.07 3.08 6.74L4 22l4.55-1.52A10.1 10.1 0 0 0 12 21c5.52 0 10-4.02 10-9S17.52 2 12 2z"/>
-            <circle cx="8.5" cy="11" r="1" fill="white" stroke="none"/>
-            <circle cx="12" cy="11" r="1" fill="white" stroke="none"/>
-            <circle cx="15.5" cy="11" r="1" fill="white" stroke="none"/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2a2 2 0 0 1 2 2v1h1a3 3 0 0 1 3 3v1.17A3 3 0 0 1 20 12a3 3 0 0 1-2 2.83V16a3 3 0 0 1-3 3h-1v1a2 2 0 0 1-4 0v-1H9a3 3 0 0 1-3-3v-1.17A3 3 0 0 1 4 12a3 3 0 0 1 2-2.83V8a3 3 0 0 1 3-3h1V4a2 2 0 0 1 2-2zm0 2a.5.5 0 0 0-.5.5V6h1V4.5A.5.5 0 0 0 12 4zM9 7a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H9zm1.5 2.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM9.5 13h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1 0-1zm2 3h1v1h-1v-1zm-.5 1v1a.5.5 0 0 0 1 0v-1h-1z"/>
           </svg>
         )}
       </button>
