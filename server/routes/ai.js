@@ -19,7 +19,7 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-pro';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM_PROMPT = `You are PMA Smart AI Assistant for the PMA platform. Your primary responsibility is to help users search, discover, navigate, and interact with PMA services, resources, properties, agreements, and account information.
@@ -240,7 +240,8 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
   } catch (err) {
     const detail = err.response?.data || err.message;
     console.error('AI chat error:', JSON.stringify(detail));
-    send({ type: 'error', message: 'AI service temporarily unavailable. Please try again.' });
+    const errMsg = err.response?.data?.error?.message || err.message || 'Unknown error';
+    send({ type: 'error', message: `AI error: ${errMsg}` });
     res.end();
   }
 });
