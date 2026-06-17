@@ -20,7 +20,7 @@ const aiLimiter = rateLimit({
 });
 
 const GEMINI_MODEL = 'gemini-1.5-flash';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM_PROMPT = `You are PMA Smart AI Assistant for the PMA platform. Your primary responsibility is to help users search, discover, navigate, and interact with PMA services, resources, properties, agreements, and account information.
 
@@ -227,31 +227,13 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
     };
 
     const geminiRes = await axios.post(
-      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}&alt=sse`,
+      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
       body,
-      { responseType: 'stream', timeout: 30000 }
+      { timeout: 30000 }
     );
 
-    let buf = '';
-    await new Promise((resolve, reject) => {
-      geminiRes.data.on('data', (chunk) => {
-        buf += chunk.toString();
-        const lines = buf.split('\n');
-        buf = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (!raw || raw === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(raw);
-            const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) send({ type: 'delta', text });
-          } catch (_) {}
-        }
-      });
-      geminiRes.data.on('end', resolve);
-      geminiRes.data.on('error', reject);
-    });
+    const text = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (text) send({ type: 'delta', text });
 
     send({ type: 'done' });
     res.end();
