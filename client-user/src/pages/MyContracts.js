@@ -1,8 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiFileText, FiHome, FiCalendar, FiDollarSign, FiDownload, FiEye, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiFileText, FiHome, FiCalendar, FiDollarSign, FiDownload, FiEye, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiLock, FiUnlock } from 'react-icons/fi';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
+
+const loadRazorpayScript = () =>
+  new Promise((resolve) => {
+    if (document.getElementById('razorpay-script')) return resolve(true);
+    const script = document.createElement('script');
+    script.id = 'razorpay-script';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
 const STATUS_CONFIG = {
   draft:              { label: 'Draft',             color: '#6b7280', bg: '#f3f4f6' },
@@ -19,9 +30,60 @@ const StatusIcon = ({ status }) => {
 
 const formatPrice = (p) => p >= 10000000 ? `₹${(p / 10000000).toFixed(2)}Cr` : p >= 100000 ? `₹${(p / 100000).toFixed(2)}L` : `₹${Number(p || 0).toLocaleString()}`;
 
-const ContractDetailModal = ({ contract, onClose }) => {
+const ContractDetailModal = ({ contract, onClose, onPaymentDone }) => {
+  const [payingAdvance, setPayingAdvance] = useState(false);
   if (!contract) return null;
   const cfg = STATUS_CONFIG[contract.status] || STATUS_CONFIG.draft;
+
+  const handleAdvancePayment = async () => {
+    setPayingAdvance(true);
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error('Failed to load Razorpay');
+
+      const { data } = await API.post(`/purchase-contracts/${contract._id}/razorpay/create-order`);
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+      const options = {
+        key: data.key,
+        amount: data.order.amount,
+        currency: data.order.currency,
+        name: 'PropManage',
+        description: `Advance Payment — ${data.contract.contractNumber}`,
+        order_id: data.order.id,
+        prefill: {
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          email: user.email || '',
+          contact: user.phone || '',
+        },
+        theme: { color: '#1a56db' },
+        modal: { backdropclose: false },
+        handler: async (response) => {
+          try {
+            const verifyRes = await API.post(`/purchase-contracts/${contract._id}/razorpay/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            if (verifyRes.data.success) {
+              toast.success(`Advance of ₹${data.contract.advanceAmount.toLocaleString()} paid! You can now sign the contract.`);
+              onPaymentDone(verifyRes.data.contract);
+            }
+          } catch {
+            toast.error('Payment verification failed. Contact support.');
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (r) => toast.error(`Payment failed: ${r.error.description}`));
+      rzp.open();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Could not initiate payment');
+    } finally {
+      setPayingAdvance(false);
+    }
+  };
 
   const handlePrint = () => {
     const w = window.open('', '_blank');
@@ -156,6 +218,61 @@ const ContractDetailModal = ({ contract, onClose }) => {
             </div>
           </div>
 
+          {/* ── Razorpay Payment Gate (shown only for pending_signatures + unpaid) ── */}
+          {contract.status === 'pending_signatures' && !contract.advancePaid && contract.advanceAmount > 0 && (
+            <div style={{ border: '2px solid #1a56db', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+              {/* Price summary header */}
+              <div style={{ background: '#1a3a6e', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'white', fontWeight: 700, fontSize: '0.95rem' }}>Price Summary</span>
+                <FiLock size={16} color="#90caf9" />
+              </div>
+              <div style={{ background: '#f0f7ff', padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.9rem', color: '#555' }}>
+                  <span>Purchase Price</span>
+                  <span style={{ fontWeight: 600 }}>₹{contract.purchasePrice?.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.9rem', color: '#555' }}>
+                  <span>Balance Amount</span>
+                  <span style={{ fontWeight: 600 }}>₹{contract.balanceAmount?.toLocaleString()}</span>
+                </div>
+                <div style={{ borderTop: '1px solid #bfdbfe', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '1rem' }}>Advance Due Now</span>
+                  <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1a56db' }}>₹{contract.advanceAmount?.toLocaleString()}</span>
+                </div>
+              </div>
+              <div style={{ background: 'white', padding: '14px 20px', borderTop: '1px solid #dbeafe' }}>
+                <p style={{ fontSize: '0.82rem', color: '#666', marginBottom: 12 }}>
+                  🔒 Complete advance payment to unlock contract signing. Secured by Razorpay.
+                </p>
+                <button
+                  onClick={handleAdvancePayment}
+                  disabled={payingAdvance}
+                  style={{
+                    width: '100%', padding: '13px', background: '#1a56db', color: 'white',
+                    border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.95rem',
+                    cursor: payingAdvance ? 'not-allowed' : 'pointer', opacity: payingAdvance ? 0.7 : 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  {payingAdvance ? 'Opening Razorpay...' : `💳  Pay Advance ₹${contract.advanceAmount?.toLocaleString()}`}
+                </button>
+                <div style={{ textAlign: 'center', marginTop: 8, fontSize: '0.75rem', color: '#aaa' }}>
+                  Secured by <strong>Razorpay</strong> · Cards, Net Banking, Wallets & UPI
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Paid badge */}
+          {contract.advancePaid && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <FiUnlock size={16} color="#16a34a" />
+              <span style={{ fontSize: '0.88rem', color: '#16a34a', fontWeight: 600 }}>
+                Advance of ₹{contract.advanceAmount?.toLocaleString()} paid via Razorpay — Contract signing unlocked
+              </span>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-outline btn-full" onClick={handlePrint}><FiDownload /> Download PDF</button>
             <button className="btn btn-ghost btn-full" onClick={onClose}>Close</button>
@@ -178,6 +295,11 @@ const MyContracts = () => {
       .then(r => setContracts(r.data.contracts || []))
       .catch(() => toast.error('Failed to load contracts'))
       .finally(() => setLoading(false));
+  }, []);
+
+  const handlePaymentDone = useCallback((updatedContract) => {
+    setContracts(prev => prev.map(c => c._id === updatedContract._id ? { ...c, advancePaid: true, advancePaidAt: updatedContract.advancePaidAt } : c));
+    setSelectedContract(prev => prev ? { ...prev, advancePaid: true } : prev);
   }, []);
 
   const filtered = activeTab === 'all' ? contracts : contracts.filter(c => c.status === activeTab);
@@ -261,6 +383,16 @@ const MyContracts = () => {
                       <span style={{ background: cfg.bg, color: cfg.color, padding: '5px 12px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <StatusIcon status={contract.status} /> {cfg.label}
                       </span>
+                      {contract.status === 'pending_signatures' && !contract.advancePaid && (
+                        <span style={{ background: '#fef3c7', color: '#92400e', padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                          <FiLock size={11} /> Advance Pending
+                        </span>
+                      )}
+                      {contract.advancePaid && (
+                        <span style={{ background: '#d1fae5', color: '#065f46', padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                          <FiUnlock size={11} /> Advance Paid
+                        </span>
+                      )}
                       <div style={{ fontSize: '0.72rem', color: 'var(--gray-400)', marginTop: 4 }}>{new Date(contract.createdAt).toLocaleDateString('en-IN')}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -275,7 +407,7 @@ const MyContracts = () => {
       </div>
 
       {selectedContract && (
-        <ContractDetailModal contract={selectedContract} onClose={() => setSelectedContract(null)} />
+        <ContractDetailModal contract={selectedContract} onClose={() => setSelectedContract(null)} onPaymentDone={handlePaymentDone} />
       )}
     </div>
   );

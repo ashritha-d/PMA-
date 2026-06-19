@@ -37,6 +37,10 @@ const purchaseContractSchema = new mongoose.Schema({
   buyerSignedAt: Date,
   ownerSignedAt: Date,
   auditLog: [auditLogSchema],
+  // Razorpay advance payment
+  advancePaid: { type: Boolean, default: false },
+  advancePaymentId: { type: String },          // Razorpay payment_id
+  advancePaidAt: { type: Date },
   // Denormalized for fast display
   propertyTitle: String,
   propertyAddress: String,
