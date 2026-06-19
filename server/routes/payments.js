@@ -1,11 +1,19 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
+const Razorpay = require('razorpay');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
 const Admin = require('../models/Admin');
 const { protect, adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+
+const getRazorpay = () =>
+  new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
 
 router.post('/', protect, upload.single('screenshot'), async (req, res) => {
   try {
@@ -61,6 +69,102 @@ router.put('/:id/verify', adminProtect, async (req, res) => {
     await Notification.create({ recipient: payment.user._id, recipientModel: 'User', type: 'payment', title: 'Payment ' + (req.body.status === 'completed' ? 'Confirmed' : 'Rejected'), message: `Your payment of ₹${payment.amount} has been ${req.body.status}.` });
     const io = req.app.get('io');
     if (io) io.to(payment.user._id.toString()).emit('notification', { type: 'payment', message: `Payment ${req.body.status}` });
+    res.json({ success: true, payment });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── Razorpay: create order ────────────────────────────────────────────────
+router.post('/razorpay/create-order', protect, async (req, res) => {
+  try {
+    const { amount, currency = 'INR', notes = {} } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ success: false, message: 'Invalid amount' });
+
+    const order = await getRazorpay().orders.create({
+      amount: Math.round(amount * 100), // paise
+      currency,
+      notes,
+      receipt: `rcpt_${Date.now()}`,
+    });
+
+    res.json({ success: true, order, key: process.env.RAZORPAY_KEY_ID });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── Razorpay: verify payment signature & save record ─────────────────────
+router.post('/razorpay/verify', protect, async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      amount,
+      paymentType = 'booking_fee',
+      property,
+      booking,
+      notes,
+    } = req.body;
+
+    // Signature verification
+    const body = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSig = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest('hex');
+
+    if (expectedSig !== razorpay_signature) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed — invalid signature' });
+    }
+
+    // Save verified payment
+    const payment = await Payment.create({
+      user: req.user._id,
+      property,
+      booking,
+      amount,
+      currency: 'INR',
+      paymentType,
+      paymentMode: 'online',
+      transactionId: razorpay_payment_id,
+      status: 'completed',
+      notes: notes || `Razorpay Order: ${razorpay_order_id}`,
+    });
+
+    // Update booking payment status if linked
+    if (booking) {
+      await Booking.findByIdAndUpdate(booking, { paymentStatus: 'paid', paymentId: payment._id });
+    }
+
+    // Notify user
+    await Notification.create({
+      recipient: req.user._id,
+      recipientModel: 'User',
+      type: 'payment',
+      title: 'Payment Successful',
+      message: `Payment of ₹${amount} confirmed via Razorpay. Transaction ID: ${razorpay_payment_id}`,
+    });
+
+    // Notify admins
+    const admins = await Admin.find({ isActive: true });
+    for (const admin of admins) {
+      await Notification.create({
+        recipient: admin._id,
+        recipientModel: 'Admin',
+        type: 'payment',
+        title: 'New Razorpay Payment',
+        message: `₹${amount} received from ${req.user.firstName} ${req.user.lastName}. TxID: ${razorpay_payment_id}`,
+      });
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(req.user._id.toString()).emit('notification', { type: 'payment', message: 'Payment confirmed!' });
+      io.emit('admin_notification', { type: 'payment', message: 'New Razorpay payment received' });
+    }
+
     res.json({ success: true, payment });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
