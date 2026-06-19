@@ -30,10 +30,31 @@ const StatusIcon = ({ status }) => {
 
 const formatPrice = (p) => p >= 10000000 ? `₹${(p / 10000000).toFixed(2)}Cr` : p >= 100000 ? `₹${(p / 100000).toFixed(2)}L` : `₹${Number(p || 0).toLocaleString()}`;
 
-const ContractDetailModal = ({ contract, onClose, onPaymentDone }) => {
+const ContractDetailModal = ({ contract, onClose, onPaymentDone, onSigned }) => {
   const [payingAdvance, setPayingAdvance] = useState(false);
+  const [signing, setSigning] = useState(false);
   if (!contract) return null;
   const cfg = STATUS_CONFIG[contract.status] || STATUS_CONFIG.draft;
+
+  const canSign = !contract.buyerSignedAt &&
+    contract.status === 'pending_signatures' &&
+    (contract.advanceAmount === 0 || contract.advancePaid);
+
+  const handleSign = async () => {
+    if (!window.confirm('By clicking OK you confirm you have read and agree to all terms of this contract. This action cannot be undone.')) return;
+    setSigning(true);
+    try {
+      const { data } = await API.post(`/purchase-contracts/${contract._id}/sign`, {
+        signatureData: `${contract.buyerName} — digitally signed on ${new Date().toLocaleString('en-IN')}`,
+      });
+      if (data.success) {
+        toast.success('Contract signed successfully! Awaiting admin approval.');
+        onSigned(data.contract);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to sign contract');
+    } finally { setSigning(false); }
+  };
 
   const handleAdvancePayment = async () => {
     setPayingAdvance(true);
@@ -218,10 +239,30 @@ const ContractDetailModal = ({ contract, onClose, onPaymentDone }) => {
             </div>
           </div>
 
-          {/* ── Razorpay Payment Gate (shown only for pending_signatures + unpaid) ── */}
+          {/* ── Step indicator ─────────────────────────────────────────── */}
+          {contract.status === 'pending_signatures' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 20, background: '#f8fafc', borderRadius: 10, padding: '12px 16px' }}>
+              {[
+                { num: 1, label: 'Terms Accepted', done: true },
+                { num: 2, label: 'Pay Advance', done: contract.advancePaid || contract.advanceAmount === 0 },
+                { num: 3, label: 'Sign Contract', done: !!contract.buyerSignedAt },
+              ].map((step, i) => (
+                <React.Fragment key={step.num}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: step.done ? '#16a34a' : '#1a56db', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>
+                      {step.done ? '✓' : step.num}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', marginTop: 4, color: step.done ? '#16a34a' : '#1a56db', fontWeight: 600, textAlign: 'center' }}>{step.label}</div>
+                  </div>
+                  {i < 2 && <div style={{ flex: 1, height: 2, background: step.done ? '#16a34a' : '#e2e8f0', marginBottom: 16 }} />}
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+
+          {/* ── Razorpay Payment Gate ───────────────────────────────────── */}
           {contract.status === 'pending_signatures' && !contract.advancePaid && contract.advanceAmount > 0 && (
             <div style={{ border: '2px solid #1a56db', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-              {/* Price summary header */}
               <div style={{ background: '#1a3a6e', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'white', fontWeight: 700, fontSize: '0.95rem' }}>Price Summary</span>
                 <FiLock size={16} color="#90caf9" />
@@ -237,23 +278,15 @@ const ContractDetailModal = ({ contract, onClose, onPaymentDone }) => {
                 </div>
                 <div style={{ borderTop: '1px solid #bfdbfe', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: '1rem' }}>Advance Due Now</span>
-                  <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1a56db' }}>₹{contract.advanceAmount?.toLocaleString()}</span>
+                  <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#1a56db' }}>₹{contract.advanceAmount?.toLocaleString()}</span>
                 </div>
               </div>
               <div style={{ background: 'white', padding: '14px 20px', borderTop: '1px solid #dbeafe' }}>
-                <p style={{ fontSize: '0.82rem', color: '#666', marginBottom: 12 }}>
-                  🔒 Complete advance payment to unlock contract signing. Secured by Razorpay.
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 12 }}>
+                  🔒 Pay the advance amount to unlock contract signing.
                 </p>
-                <button
-                  onClick={handleAdvancePayment}
-                  disabled={payingAdvance}
-                  style={{
-                    width: '100%', padding: '13px', background: '#1a56db', color: 'white',
-                    border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.95rem',
-                    cursor: payingAdvance ? 'not-allowed' : 'pointer', opacity: payingAdvance ? 0.7 : 1,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  }}
-                >
+                <button onClick={handleAdvancePayment} disabled={payingAdvance}
+                  style={{ width: '100%', padding: '13px', background: '#1a56db', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.95rem', cursor: payingAdvance ? 'not-allowed' : 'pointer', opacity: payingAdvance ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   {payingAdvance ? 'Opening Razorpay...' : `💳  Pay Advance ₹${contract.advanceAmount?.toLocaleString()}`}
                 </button>
                 <div style={{ textAlign: 'center', marginTop: 8, fontSize: '0.75rem', color: '#aaa' }}>
@@ -263,13 +296,33 @@ const ContractDetailModal = ({ contract, onClose, onPaymentDone }) => {
             </div>
           )}
 
-          {/* Paid badge */}
-          {contract.advancePaid && (
+          {/* ── Advance paid banner ─────────────────────────────────────── */}
+          {(contract.advancePaid || contract.advanceAmount === 0) && !contract.buyerSignedAt && contract.status === 'pending_signatures' && (
             <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
               <FiUnlock size={16} color="#16a34a" />
               <span style={{ fontSize: '0.88rem', color: '#16a34a', fontWeight: 600 }}>
-                Advance of ₹{contract.advanceAmount?.toLocaleString()} paid via Razorpay — Contract signing unlocked
+                {contract.advanceAmount === 0 ? 'No advance required — ' : `Advance of ₹${contract.advanceAmount?.toLocaleString()} paid — `}
+                Signing is now unlocked
               </span>
+            </div>
+          )}
+
+          {/* ── Sign Contract Button ────────────────────────────────────── */}
+          {canSign && (
+            <button onClick={handleSign} disabled={signing}
+              style={{ width: '100%', padding: '14px', background: signing ? '#94a3b8' : '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: '1rem', cursor: signing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+              {signing ? 'Signing...' : '✍️  Sign Contract Digitally'}
+            </button>
+          )}
+
+          {/* Already signed */}
+          {contract.buyerSignedAt && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <FiCheckCircle size={18} color="#16a34a" />
+              <div>
+                <div style={{ fontWeight: 700, color: '#16a34a', fontSize: '0.9rem' }}>Contract Signed</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Awaiting admin approval · {new Date(contract.buyerSignedAt).toLocaleDateString('en-IN')}</div>
+              </div>
             </div>
           )}
 
@@ -300,6 +353,11 @@ const MyContracts = () => {
   const handlePaymentDone = useCallback((updatedContract) => {
     setContracts(prev => prev.map(c => c._id === updatedContract._id ? { ...c, advancePaid: true, advancePaidAt: updatedContract.advancePaidAt } : c));
     setSelectedContract(prev => prev ? { ...prev, advancePaid: true } : prev);
+  }, []);
+
+  const handleSigned = useCallback((updatedContract) => {
+    setContracts(prev => prev.map(c => c._id === updatedContract._id ? { ...c, buyerSignedAt: updatedContract.buyerSignedAt } : c));
+    setSelectedContract(prev => prev ? { ...prev, buyerSignedAt: updatedContract.buyerSignedAt } : prev);
   }, []);
 
   const filtered = activeTab === 'all' ? contracts : contracts.filter(c => c.status === activeTab);
@@ -407,7 +465,7 @@ const MyContracts = () => {
       </div>
 
       {selectedContract && (
-        <ContractDetailModal contract={selectedContract} onClose={() => setSelectedContract(null)} onPaymentDone={handlePaymentDone} />
+        <ContractDetailModal contract={selectedContract} onClose={() => setSelectedContract(null)} onPaymentDone={handlePaymentDone} onSigned={handleSigned} />
       )}
     </div>
   );

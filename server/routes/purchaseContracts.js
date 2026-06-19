@@ -181,7 +181,7 @@ router.post('/:id/sign', protect, async (req, res) => {
     const isBuyer = contract.buyerId.toString() === req.user._id.toString();
     if (!isBuyer) return res.status(403).json({ success: false, message: 'Only the buyer can sign here' });
 
-    if (!contract.advancePaid) return res.status(400).json({ success: false, message: 'Advance payment must be completed before signing' });
+    if (contract.advanceAmount > 0 && !contract.advancePaid) return res.status(400).json({ success: false, message: 'Advance payment must be completed before signing' });
     if (contract.buyerSignedAt) return res.status(400).json({ success: false, message: 'Already signed' });
 
     await ContractSignature.create({
