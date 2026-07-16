@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const CMS = require('../models/CMS');
 const { adminProtect } = require('../middleware/auth');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 router.get('/', async (req, res) => {
   try {
@@ -11,7 +12,7 @@ router.get('/', async (req, res) => {
     const content = await CMS.find(query).sort('order');
     res.json({ success: true, content });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -20,7 +21,7 @@ router.get('/key/:key', async (req, res) => {
     const content = await CMS.findOne({ key: req.params.key, isActive: true });
     res.json({ success: true, content });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -37,7 +38,7 @@ router.post('/', adminProtect, async (req, res) => {
     if (io) io.emit('cms_update', { key: req.body.key });
     res.json({ success: true, content });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -48,7 +49,7 @@ router.put('/:id', adminProtect, async (req, res) => {
     if (io) io.emit('cms_update', { key: content.key });
     res.json({ success: true, content });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -57,7 +58,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     await CMS.findByIdAndUpdate(req.params.id, { isActive: false });
     res.json({ success: true, message: 'Content deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

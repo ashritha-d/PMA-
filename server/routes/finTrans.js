@@ -3,6 +3,7 @@ const router = express.Router();
 const FinTrans = require('../models/FinTrans');
 const { adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 // Summary stats (receipts, payments, net) with optional filters
 router.get('/summary', adminProtect, async (req, res) => {
@@ -32,7 +33,7 @@ router.get('/summary', adminProtect, async (req, res) => {
     const totalPayments = result?.totalPayments || 0;
     res.json({ success: true, totalReceipts, totalPayments, netBalance: totalReceipts - totalPayments, count: result?.count || 0 });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -66,7 +67,7 @@ router.get('/monthly', adminProtect, async (req, res) => {
     });
     res.json({ success: true, months });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -108,7 +109,7 @@ router.get('/', adminProtect, async (req, res) => {
 
     res.json({ success: true, transactions, total, pages: Math.ceil(total / limit), page: Number(page) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -124,7 +125,7 @@ router.get('/:id', adminProtect, async (req, res) => {
     if (!tx) return res.status(404).json({ success: false, message: 'Transaction not found' });
     res.json({ success: true, transaction: tx });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -138,7 +139,7 @@ router.post('/', adminProtect, upload.single('chequeImage'), async (req, res) =>
     const tx = await FinTrans.create({ ...data, createdBy: req.admin._id });
     res.status(201).json({ success: true, transaction: tx });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -153,7 +154,7 @@ router.put('/:id', adminProtect, upload.single('chequeImage'), async (req, res) 
     if (!tx) return res.status(404).json({ success: false, message: 'Transaction not found' });
     res.json({ success: true, transaction: tx });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -168,7 +169,7 @@ router.patch('/:id/cheque-status', adminProtect, async (req, res) => {
     if (!tx) return res.status(404).json({ success: false, message: 'Transaction not found' });
     res.json({ success: true, transaction: tx });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -179,7 +180,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     if (!tx) return res.status(404).json({ success: false, message: 'Transaction not found' });
     res.json({ success: true, message: 'Transaction deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

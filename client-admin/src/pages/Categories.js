@@ -84,10 +84,10 @@ const Categories = () => {
 
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="modal-panel" onClick={e => e.stopPropagation()}>
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="category-modal-title" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">{editing ? 'Edit Category' : 'Add Category'}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}>✕</button>
+              <h3 className="modal-title" id="category-modal-title">{editing ? 'Edit Category' : 'Add Category'}</h3>
+              <button className="modal-close" onClick={() => setShowForm(false)} aria-label="Close">✕</button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleSave}>

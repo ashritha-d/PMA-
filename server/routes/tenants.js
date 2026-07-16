@@ -4,6 +4,7 @@ const Tenant = require('../models/Tenant');
 const Property = require('../models/Property');
 const { adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 const TENANT_DOC_FIELDS = [
   { name: 'passportCopy', maxCount: 1 },
@@ -54,7 +55,7 @@ router.get('/', adminProtect, async (req, res) => {
       .skip((page - 1) * limit);
     res.json({ success: true, tenants, total, pages: Math.ceil(total / limit), page: Number(page) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -67,7 +68,7 @@ router.get('/:id', adminProtect, async (req, res) => {
     if (!tenant) return res.status(404).json({ success: false, message: 'Tenant not found' });
     res.json({ success: true, tenant });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -85,7 +86,7 @@ router.post('/', adminProtect, upload.fields(TENANT_DOC_FIELDS), async (req, res
 
     res.status(201).json({ success: true, tenant });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -102,7 +103,7 @@ router.put('/:id', adminProtect, upload.fields(TENANT_DOC_FIELDS), async (req, r
     if (!tenant) return res.status(404).json({ success: false, message: 'Tenant not found' });
     res.json({ success: true, tenant });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -116,7 +117,7 @@ router.patch('/:id/status', adminProtect, async (req, res) => {
     await tenant.save();
     res.json({ success: true, status: tenant.status, isActive: tenant.isActive });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -131,7 +132,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     }
     res.json({ success: true, message: 'Tenant deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

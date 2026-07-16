@@ -223,13 +223,13 @@ const Payments = () => {
       {/* ── Razorpay Modal ───────────────────────────────────────────────── */}
       {showRazorpay && (
         <div className="modal-overlay" onClick={() => setShowRazorpay(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="razorpay-modal-title" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header" style={{ background: 'linear-gradient(135deg, #0D1B2A, #1a3a5c)', color: 'white', borderRadius: '12px 12px 0 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, background: '#2C6EE8', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>💳</div>
-                <h3 className="modal-title" style={{ color: 'white' }}>Pay via Razorpay</h3>
+                <div style={{ width: 32, height: 32, background: '#2C6EE8', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">💳</div>
+                <h3 className="modal-title" id="razorpay-modal-title" style={{ color: 'white' }}>Pay via Razorpay</h3>
               </div>
-              <button className="modal-close" onClick={() => setShowRazorpay(false)} style={{ color: 'white' }}>✕</button>
+              <button className="modal-close" onClick={() => setShowRazorpay(false)} aria-label="Close" style={{ color: 'white' }}>✕</button>
             </div>
             <div className="modal-body">
               <div style={{ background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: '0.88rem', color: '#1e40af' }}>
@@ -277,10 +277,10 @@ const Payments = () => {
       {/* ── Manual / UPI Modal ───────────────────────────────────────────── */}
       {showManual && (
         <div className="modal-overlay" onClick={() => setShowManual(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="manual-payment-modal-title" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Submit Manual / UPI Payment</h3>
-              <button className="modal-close" onClick={() => setShowManual(false)}>✕</button>
+              <h3 className="modal-title" id="manual-payment-modal-title">Submit Manual / UPI Payment</h3>
+              <button className="modal-close" onClick={() => setShowManual(false)} aria-label="Close">✕</button>
             </div>
             <div className="modal-body">
               <div style={{ textAlign: 'center', marginBottom: 24, padding: 16, background: 'var(--gray-50)', borderRadius: 12 }}>

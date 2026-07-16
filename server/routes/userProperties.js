@@ -5,6 +5,7 @@ const fs = require('fs');
 const Property = require('../models/Property');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 // ─── Field mapping helpers ────────────────────────────────────────────────────
 
@@ -116,7 +117,7 @@ router.get('/my/stats', protect, async (req, res) => {
     ]);
     res.json({ success: true, stats: { total, available, occupied, maintenance, monthlyIncome: incomeAgg[0]?.total || 0 } });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -133,7 +134,7 @@ router.get('/my', protect, async (req, res) => {
     const properties = await Property.find(query).sort(sort).lean();
     res.json({ success: true, properties: properties.map(toUserFormat) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -145,7 +146,7 @@ router.get('/:id', protect, async (req, res) => {
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
     res.json({ success: true, property: toUserFormat(property) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -189,7 +190,7 @@ router.post('/', protect, upload.fields([
     res.status(201).json({ success: true, property: toUserFormat(property) });
   } catch (err) {
     console.error('[UserProperty CREATE] error:', err.message);
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -239,7 +240,7 @@ router.put('/:id', protect, upload.fields([
 
     res.json({ success: true, property: toUserFormat(property) });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -259,7 +260,7 @@ router.put('/:id/status', protect, async (req, res) => {
 
     res.json({ success: true, property: toUserFormat(property) });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -282,7 +283,7 @@ router.delete('/:id/image/:index', protect, async (req, res) => {
     await property.save();
     res.json({ success: true, property: toUserFormat(property) });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -302,7 +303,7 @@ router.delete('/:id/document/:index', protect, async (req, res) => {
     await property.save();
     res.json({ success: true, property: toUserFormat(property) });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -335,7 +336,7 @@ router.delete('/:id', protect, async (req, res) => {
 
     res.json({ success: true, message: 'Property deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

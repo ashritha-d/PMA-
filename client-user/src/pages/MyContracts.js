@@ -171,15 +171,15 @@ const ContractDetailModal = ({ contract, onClose, onPaymentDone, onSigned }) => 
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ alignItems: 'flex-start', overflowY: 'auto', padding: '40px 20px' }}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 660, width: '100%', maxHeight: 'none' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="contract-detail-title" onClick={e => e.stopPropagation()} style={{ maxWidth: 660, width: '100%', maxHeight: 'none' }}>
         <div className="modal-header">
           <div>
-            <h3 className="modal-title">Contract {contract.contractNumber}</h3>
+            <h3 className="modal-title" id="contract-detail-title">Contract {contract.contractNumber}</h3>
             <span style={{ fontSize: '0.78rem', background: cfg.bg, color: cfg.color, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>
               <StatusIcon status={contract.status} /> {cfg.label}
             </span>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
           {/* Parties */}

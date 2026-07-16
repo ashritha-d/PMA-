@@ -104,10 +104,10 @@ const Bookings = () => {
       {/* Detail Panel */}
       {selected && (
         <div className="modal-overlay" onClick={() => setSelected(null)}>
-          <div className="modal-panel" onClick={e => e.stopPropagation()}>
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Booking Details</h3>
-              <button className="modal-close" onClick={() => setSelected(null)}>✕</button>
+              <h3 className="modal-title" id="booking-modal-title">Booking Details</h3>
+              <button className="modal-close" onClick={() => setSelected(null)} aria-label="Close">✕</button>
             </div>
             <div className="modal-body">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

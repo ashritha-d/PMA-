@@ -3,6 +3,7 @@ const router = express.Router();
 const ServTrans = require('../models/ServTrans');
 const { adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 // Status counts for pipeline header
 router.get('/stats', adminProtect, async (req, res) => {
@@ -14,7 +15,7 @@ router.get('/stats', adminProtect, async (req, res) => {
     counts.forEach(c => { if (stats[c._id] !== undefined) stats[c._id] = c.count; });
     res.json({ success: true, stats });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -45,7 +46,7 @@ router.get('/', adminProtect, async (req, res) => {
       .skip((page - 1) * limit);
     res.json({ success: true, requests, total, pages: Math.ceil(total / limit), page: Number(page) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -59,7 +60,7 @@ router.get('/:id', adminProtect, async (req, res) => {
     if (!req_) return res.status(404).json({ success: false, message: 'Service request not found' });
     res.json({ success: true, request: req_ });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -80,7 +81,7 @@ router.post('/', adminProtect, upload.fields(imgFields), async (req, res) => {
     const request = await ServTrans.create({ ...data, createdBy: req.admin._id });
     res.status(201).json({ success: true, request });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -110,7 +111,7 @@ router.put('/:id', adminProtect, upload.fields(imgFields), async (req, res) => {
     );
     res.json({ success: true, request: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -124,7 +125,7 @@ router.patch('/:id/status', adminProtect, async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, request: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -135,7 +136,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     if (!deleted) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, message: 'Service request deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

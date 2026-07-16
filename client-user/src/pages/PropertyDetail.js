@@ -527,10 +527,10 @@ const PropertyDetail = () => {
       {/* ─── Booking Modal ─────────────────────────────────────────────────── */}
       {showBooking && (
         <div className="modal-overlay" onClick={() => setShowBooking(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="booking-modal-title" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Schedule a Visit</h3>
-              <button className="modal-close" onClick={() => setShowBooking(false)}>✕</button>
+              <h3 className="modal-title" id="booking-modal-title">Schedule a Visit</h3>
+              <button className="modal-close" onClick={() => setShowBooking(false)} aria-label="Close">✕</button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleBooking}>
@@ -559,10 +559,10 @@ const PropertyDetail = () => {
       {/* ─── Review Modal ──────────────────────────────────────────────────── */}
       {showReview && (
         <div className="modal-overlay" onClick={() => setShowReview(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="review-modal-title" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Write a Review</h3>
-              <button className="modal-close" onClick={() => setShowReview(false)}>✕</button>
+              <h3 className="modal-title" id="review-modal-title">Write a Review</h3>
+              <button className="modal-close" onClick={() => setShowReview(false)} aria-label="Close">✕</button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleReview}>
@@ -590,15 +590,15 @@ const PropertyDetail = () => {
       {/* ─── Purchase Now Wizard ───────────────────────────────────────────── */}
       {showPurchase && (
         <div className="modal-overlay" onClick={() => { if (wizardStep < 5) setShowPurchase(false); }} style={{ alignItems: 'flex-start', overflowY: 'auto', padding: '40px 20px' }}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '100%', maxHeight: 'none' }}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="purchase-wizard-title" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '100%', maxHeight: 'none' }}>
             {/* Wizard Header */}
             <div style={{ padding: '24px 28px 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Property Purchase Agreement Wizard</h3>
+                  <h3 id="purchase-wizard-title" style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Property Purchase Agreement Wizard</h3>
                   <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: 2 }}>{property.title}</div>
                 </div>
-                {wizardStep < 5 && <button className="modal-close" onClick={() => setShowPurchase(false)}><FiX /></button>}
+                {wizardStep < 5 && <button className="modal-close" onClick={() => setShowPurchase(false)} aria-label="Close"><FiX aria-hidden="true" /></button>}
               </div>
               {/* Stepper */}
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 28 }}>

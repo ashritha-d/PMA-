@@ -3,13 +3,14 @@ const router = express.Router();
 const Review = require('../models/Review');
 const Property = require('../models/Property');
 const { protect, adminProtect } = require('../middleware/auth');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 router.get('/property/:propertyId', async (req, res) => {
   try {
     const reviews = await Review.find({ property: req.params.propertyId, isApproved: true }).populate('user', 'firstName lastName photo').sort('-createdAt');
     res.json({ success: true, reviews });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -26,7 +27,7 @@ router.post('/', protect, async (req, res) => {
 
     res.status(201).json({ success: true, review });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -35,7 +36,7 @@ router.get('/', adminProtect, async (req, res) => {
     const reviews = await Review.find().populate('user', 'firstName lastName').populate('property', 'title').sort('-createdAt');
     res.json({ success: true, reviews });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -44,7 +45,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     await Review.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Review deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

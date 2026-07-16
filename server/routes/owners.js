@@ -5,6 +5,7 @@ const Property = require('../models/Property');
 const { adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const path = require('path');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 // List owners with pagination + search
 router.get('/', adminProtect, async (req, res) => {
@@ -31,7 +32,7 @@ router.get('/', adminProtect, async (req, res) => {
       .skip((page - 1) * limit);
     res.json({ success: true, owners, total, pages: Math.ceil(total / limit), page: Number(page) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -42,7 +43,7 @@ router.get('/:id', adminProtect, async (req, res) => {
     if (!owner) return res.status(404).json({ success: false, message: 'Owner not found' });
     res.json({ success: true, owner });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -59,7 +60,7 @@ router.get('/:id/properties', adminProtect, async (req, res) => {
     }).select('propertyCode title type address status price images');
     res.json({ success: true, properties });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -88,7 +89,7 @@ router.post('/', adminProtect, upload.fields(ownerDocFields), async (req, res) =
     const owner = await Owner.create({ ...data, createdBy: req.admin._id });
     res.status(201).json({ success: true, owner });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -116,7 +117,7 @@ router.put('/:id', adminProtect, upload.fields(ownerDocFields), async (req, res)
     if (!owner) return res.status(404).json({ success: false, message: 'Owner not found' });
     res.json({ success: true, owner });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -129,7 +130,7 @@ router.patch('/:id/status', adminProtect, async (req, res) => {
     await owner.save();
     res.json({ success: true, isActive: owner.isActive });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -140,7 +141,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     if (!owner) return res.status(404).json({ success: false, message: 'Owner not found' });
     res.json({ success: true, message: 'Owner deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

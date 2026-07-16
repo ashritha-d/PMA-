@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 router.put('/photo', protect, upload.single('photo'), async (req, res) => {
   try {
@@ -11,7 +12,7 @@ router.put('/photo', protect, upload.single('photo'), async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user._id, { photo: photoUrl }, { new: true });
     res.json({ success: true, photo: photoUrl, user });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

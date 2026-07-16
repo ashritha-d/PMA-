@@ -6,6 +6,8 @@ const Admin = require('../models/Admin');
 const { adminProtect, optionalAuth } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const path = require('path');
+const { escapeRegex } = require('../utils/escapeRegex');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 router.get('/', optionalAuth, async (req, res) => {
   try {
@@ -13,13 +15,16 @@ router.get('/', optionalAuth, async (req, res) => {
     const query = { isActive: true };
     if (type) query.type = type;
     if (listingType) query.listingType = listingType;
-    if (city) query['address.city'] = { $regex: city, $options: 'i' };
+    if (city) query['address.city'] = { $regex: escapeRegex(city), $options: 'i' };
     if (minPrice || maxPrice) { query.price = {}; if (minPrice) query.price.$gte = Number(minPrice); if (maxPrice) query.price.$lte = Number(maxPrice); }
     if (bedrooms) query['features.bedrooms'] = { $gte: Number(bedrooms) };
     if (furnished) query['features.furnished'] = furnished;
     if (status) query.status = status;
     if (featured === 'true') query.isFeatured = true;
-    if (search) query.$or = [{ title: { $regex: search, $options: 'i' } }, { description: { $regex: search, $options: 'i' } }, { 'address.city': { $regex: search, $options: 'i' } }];
+    if (search) {
+      const safeSearch = escapeRegex(search);
+      query.$or = [{ title: { $regex: safeSearch, $options: 'i' } }, { description: { $regex: safeSearch, $options: 'i' } }, { 'address.city': { $regex: safeSearch, $options: 'i' } }];
+    }
 
     const total = await Property.countDocuments(query);
     const properties = await Property.find(query)
@@ -30,7 +35,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
     res.json({ success: true, properties, total, pages: Math.ceil(total / limit), page: Number(page) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -43,7 +48,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     await Property.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
     res.json({ success: true, property });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -63,7 +68,7 @@ router.post('/', adminProtect, upload.array('images', 10), async (req, res) => {
 
     res.status(201).json({ success: true, property });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -87,7 +92,7 @@ router.put('/:id', adminProtect, upload.array('images', 10), async (req, res) =>
 
     res.json({ success: true, property: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -98,7 +103,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     if (io) io.emit('property_update', { type: 'delete', propertyId: req.params.id });
     res.json({ success: true, message: 'Property removed' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -107,7 +112,7 @@ router.patch('/:id/featured', adminProtect, async (req, res) => {
     const property = await Property.findByIdAndUpdate(req.params.id, { isFeatured: req.body.isFeatured }, { new: true });
     res.json({ success: true, property });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

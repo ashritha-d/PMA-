@@ -9,6 +9,7 @@ const Property = require('../models/Property');
 const Notification = require('../models/Notification');
 const Admin = require('../models/Admin');
 const { protect, adminProtect } = require('../middleware/auth');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 const getRazorpay = () => new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -77,11 +78,11 @@ router.post('/', protect, async (req, res) => {
     }
 
     const io = req.app.get('io');
-    if (io) io.emit('admin_notification', { type: 'contract', message: 'New purchase contract created' });
+    if (io) io.to('admin-room').emit('admin_notification', { type: 'contract', message: 'New purchase contract created' });
 
     res.status(201).json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -93,7 +94,7 @@ router.get('/my', protect, async (req, res) => {
       .sort('-createdAt');
     res.json({ success: true, contracts });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -106,7 +107,7 @@ router.get('/owner', protect, async (req, res) => {
       .sort('-createdAt');
     res.json({ success: true, contracts });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -122,7 +123,7 @@ router.get('/admin/all', adminProtect, async (req, res) => {
     const total = await PurchaseContract.countDocuments(query);
     res.json({ success: true, contracts, total, pages: Math.ceil(total / limit) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -140,7 +141,7 @@ router.get('/:id', protect, async (req, res) => {
     const payments = await ContractPayment.find({ contractId: contract._id });
     res.json({ success: true, contract, signatures, payments });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -165,7 +166,7 @@ router.put('/:id/accept-terms', protect, async (req, res) => {
     await contract.save();
     res.json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -215,11 +216,11 @@ router.post('/:id/sign', protect, async (req, res) => {
     }
 
     const io = req.app.get('io');
-    if (io) io.emit('admin_notification', { type: 'contract', message: 'Contract signed by buyer' });
+    if (io) io.to('admin-room').emit('admin_notification', { type: 'contract', message: 'Contract signed by buyer' });
 
     res.json({ success: true, contract, message: 'Contract signed successfully. Awaiting admin approval.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -257,7 +258,7 @@ router.put('/:id/status', adminProtect, async (req, res) => {
 
     res.json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -280,9 +281,16 @@ router.post('/:id/razorpay/create-order', protect, async (req, res) => {
       notes: { contractNumber: contract.contractNumber, type: 'advance_payment' },
     });
 
+    // Bind this order to this specific contract — /verify checks the
+    // submitted order_id against this before accepting any payment, so a
+    // valid order/payment/signature triple obtained for a different
+    // contract can't be replayed here.
+    contract.advanceOrderId = order.id;
+    await contract.save();
+
     res.json({ success: true, order, key: process.env.RAZORPAY_KEY_ID, contract: { contractNumber: contract.contractNumber, advanceAmount: contract.advanceAmount, propertyTitle: contract.propertyTitle } });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -297,6 +305,20 @@ router.post('/:id/razorpay/verify', protect, async (req, res) => {
     const isBuyer = contract.buyerId.toString() === req.user._id.toString();
     if (!isBuyer) return res.status(403).json({ success: false, message: 'Access denied' });
 
+    // Idempotency: don't re-process (or let a replayed request re-process)
+    // an advance that's already been recorded as paid for this contract.
+    if (contract.advancePaid) {
+      return res.json({ success: true, contract });
+    }
+
+    // The order submitted must be the exact order this contract's
+    // create-order step generated — without this check, a valid
+    // signature/order/payment triple obtained legitimately for a
+    // different (cheaper) contract could be replayed against this one.
+    if (!contract.advanceOrderId || razorpay_order_id !== contract.advanceOrderId) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed — order does not match this contract' });
+    }
+
     // Verify Razorpay signature
     const body = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSig = crypto
@@ -306,6 +328,20 @@ router.post('/:id/razorpay/verify', protect, async (req, res) => {
 
     if (expectedSig !== razorpay_signature) {
       return res.status(400).json({ success: false, message: 'Payment verification failed — invalid signature' });
+    }
+
+    // Fetch the authoritative payment record from Razorpay itself — proves
+    // the payment was actually captured and for the expected amount, rather
+    // than trusting the client's say-so beyond the signature check.
+    const rpPayment = await getRazorpay().payments.fetch(razorpay_payment_id);
+    if (rpPayment.order_id !== razorpay_order_id) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed — order mismatch' });
+    }
+    if (rpPayment.status !== 'captured') {
+      return res.status(400).json({ success: false, message: `Payment not captured (status: ${rpPayment.status})` });
+    }
+    if (rpPayment.amount !== Math.round(contract.advanceAmount * 100)) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed — amount mismatch' });
     }
 
     // Mark advance as paid — unlock signing
@@ -321,14 +357,17 @@ router.post('/:id/razorpay/verify', protect, async (req, res) => {
     });
     await contract.save();
 
-    // Record in ContractPayment
+    // Record in ContractPayment. Field names must match the schema
+    // (paymentStatus, not status; there is no paymentMode field) — the
+    // previous version used the wrong names, which Mongoose silently
+    // dropped, leaving every advance payment recorded with paymentStatus
+    // stuck at its 'pending' default despite having actually succeeded.
     await ContractPayment.create({
       contractId: contract._id,
       amount: contract.advanceAmount,
       paymentType: 'advance',
-      paymentMode: 'online',
+      paymentStatus: 'completed',
       transactionId: razorpay_payment_id,
-      status: 'paid',
       paidAt: new Date(),
       notes: `Advance payment via Razorpay — Order: ${razorpay_order_id}`,
     });
@@ -357,12 +396,12 @@ router.post('/:id/razorpay/verify', protect, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(req.user._id.toString()).emit('notification', { type: 'payment', message: 'Advance payment confirmed!' });
-      io.emit('admin_notification', { type: 'payment', message: 'Contract advance payment received' });
+      io.to('admin-room').emit('admin_notification', { type: 'payment', message: 'Contract advance payment received' });
     }
 
     res.json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -373,7 +412,7 @@ router.get('/:id/audit', adminProtect, async (req, res) => {
     if (!contract) return res.status(404).json({ success: false, message: 'Contract not found' });
     res.json({ success: true, auditLog: contract.auditLog });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -389,7 +428,7 @@ router.post('/:id/payments', protect, async (req, res) => {
     const payment = await ContractPayment.create({ contractId: contract._id, ...req.body });
     res.status(201).json({ success: true, payment });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

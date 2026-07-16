@@ -187,15 +187,15 @@ const PropertyForm = ({ property, onSuccess, onClose }) => {
       display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       padding: '20px', overflowY: 'auto',
     }}>
-      <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 780, marginTop: 20, marginBottom: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="property-form-title" style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 780, marginTop: 20, marginBottom: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         {/* Header */}
         <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 1, borderRadius: '16px 16px 0 0' }}>
           <div>
-            <h2 style={{ fontWeight: 800, fontSize: '1.3rem' }}>{isEdit ? 'Edit Property' : 'Add New Property'}</h2>
+            <h2 id="property-form-title" style={{ fontWeight: 800, fontSize: '1.3rem' }}>{isEdit ? 'Edit Property' : 'Add New Property'}</h2>
             <p style={{ color: 'var(--gray-500)', fontSize: '0.85rem', marginTop: 2 }}>Fill in the details to {isEdit ? 'update' : 'list'} your property</p>
           </div>
-          <button onClick={onClose} style={{ background: 'var(--gray-100)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--gray-600)' }}>
-            <FiX size={18} />
+          <button onClick={onClose} aria-label="Close" style={{ background: 'var(--gray-100)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--gray-600)' }}>
+            <FiX size={18} aria-hidden="true" />
           </button>
         </div>
 

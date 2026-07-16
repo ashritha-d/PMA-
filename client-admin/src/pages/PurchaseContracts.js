@@ -86,19 +86,19 @@ const ContractDetailModal = ({ contract, onClose, onStatusChange }) => {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '40px 20px' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 700, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="contract-modal-title" style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 700, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div style={{ padding: '24px 28px 0', borderBottom: '1px solid var(--gray-100)', paddingBottom: 20, marginBottom: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <h3 style={{ fontWeight: 800, margin: 0, fontSize: '1.1rem' }}>Contract: {contract.contractNumber}</h3>
+              <h3 id="contract-modal-title" style={{ fontWeight: 800, margin: 0, fontSize: '1.1rem' }}>Contract: {contract.contractNumber}</h3>
               <div style={{ marginTop: 6 }}><StatusBadge status={contract.status} /></div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handlePrint} style={{ background: 'var(--gray-100)', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <FiDownload size={14} /> PDF
+              <button onClick={handlePrint} aria-label="Download contract as PDF" style={{ background: 'var(--gray-100)', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <FiDownload size={14} aria-hidden="true" /> PDF
               </button>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--gray-400)', padding: '4px 8px' }}>✕</button>
+              <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--gray-400)', padding: '4px 8px' }}>✕</button>
             </div>
           </div>
         </div>

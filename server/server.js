@@ -8,8 +8,11 @@ const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
 
 const connectDB = require('./config/db');
+const Admin = require('./models/Admin');
+const { sanitizeError } = require('./utils/sanitizeError');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -32,8 +35,14 @@ app.use(cors({
   origin: [process.env.CLIENT_USER_URL, process.env.CLIENT_ADMIN_URL],
   credentials: true,
 }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Actual file uploads go through multer (multipart/form-data), not this
+// JSON/urlencoded parser, so 50mb here was pure unused attack surface for a
+// large-payload DoS. Every JSON body in this app is plain text (contract
+// e-signature is a name + timestamp string, not a canvas image; property
+// data is a modest JSON object) — 512kb is generous headroom over anything
+// legitimate while cutting the previous DoS surface by ~100x.
+app.use(express.json({ limit: '512kb' }));
+app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
@@ -47,6 +56,21 @@ io.on('connection', (socket) => {
     connectedUsers.set(userId, socket.id);
     socket.join(userId);
   });
+
+  // Admin-only real-time channel: a socket only joins 'admin-room' after
+  // presenting a valid admin JWT, verified server-side — previously admin
+  // notifications (new registrations, payments, bookings) were broadcast to
+  // every connected socket via io.emit(), admin or not.
+  socket.on('admin_join', async (token) => {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const admin = await Admin.findById(decoded.id);
+      if (admin && admin.isActive) socket.join('admin-room');
+    } catch {
+      // invalid/expired token — socket simply doesn't join the room
+    }
+  });
+
   socket.on('disconnect', () => {
     connectedUsers.forEach((sid, uid) => { if (sid === socket.id) connectedUsers.delete(uid); });
   });
@@ -75,8 +99,7 @@ app.use('/api/ai', require('./routes/ai'));
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ success: false, message: err.message || 'Server Error' });
+  res.status(err.status || 500).json({ success: false, message: sanitizeError(err) });
 });
 
 const PORT = process.env.PORT || 5000;

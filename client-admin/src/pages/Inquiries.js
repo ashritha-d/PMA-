@@ -99,10 +99,10 @@ const Inquiries = () => {
 
       {selected && (
         <div className="modal-overlay" onClick={() => setSelected(null)}>
-          <div className="modal-panel" onClick={e => e.stopPropagation()}>
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Inquiry #{selected.inquiryId}</h3>
-              <button className="modal-close" onClick={() => setSelected(null)}>✕</button>
+              <h3 className="modal-title" id="inquiry-modal-title">Inquiry #{selected.inquiryId}</h3>
+              <button className="modal-close" onClick={() => setSelected(null)} aria-label="Close">✕</button>
             </div>
             <div className="modal-body">
               <div style={{ background: 'var(--gray-50)', borderRadius: 10, padding: 20, marginBottom: 20 }}>

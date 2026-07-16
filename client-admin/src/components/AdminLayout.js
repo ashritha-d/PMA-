@@ -41,6 +41,14 @@ const AdminLayout = ({ children }) => {
 
   useEffect(() => {
     const socket = io('http://localhost:5000');
+    // Join the admin-only notification room — the server verifies this
+    // token before adding the socket to 'admin-room', so a non-admin
+    // socket (or no token at all) simply never receives admin_notification
+    // events instead of getting them via a global broadcast.
+    socket.on('connect', () => {
+      const token = localStorage.getItem('adminToken');
+      if (token) socket.emit('admin_join', token);
+    });
     socket.on('admin_notification', (data) => {
       setUnread(n => n + 1);
     });
@@ -73,11 +81,11 @@ const AdminLayout = ({ children }) => {
         <div className="sidebar-logo">
           <div className="sidebar-logo-text">Prop<span>Manage</span><span className="sidebar-badge">Admin</span></div>
         </div>
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" aria-label="Main navigation">
           {NAV_ITEMS.map((item, i) => (
-            item.section ? <div key={i} className="sidebar-section">{item.section}</div> : (
-              <NavLink key={item.path} to={item.path} end={item.path === '/'} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
-                <span className="icon">{item.icon}</span>
+            item.section ? <div key={i} className="sidebar-section" role="heading" aria-level="2">{item.section}</div> : (
+              <NavLink key={item.path} to={item.path} end={item.path === '/'} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} aria-current={location.pathname === item.path ? 'page' : undefined} onClick={() => setSidebarOpen(false)}>
+                <span className="icon" aria-hidden="true">{item.icon}</span>
                 {item.label}
               </NavLink>
             )
@@ -92,7 +100,7 @@ const AdminLayout = ({ children }) => {
             </div>
           </div>
           <button onClick={handleLogout} className="sidebar-item" style={{ width: '100%', background: 'none', border: 'none', color: '#ef4444', marginTop: 8, cursor: 'pointer' }}>
-            <span className="icon"><FiLogOut /></span> Logout
+            <span className="icon" aria-hidden="true"><FiLogOut /></span> Logout
           </button>
         </div>
       </aside>
@@ -100,26 +108,36 @@ const AdminLayout = ({ children }) => {
       <div className="main-area">
         <div className="topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button className="topbar-btn" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ display: 'none' }}><FiMenu /></button>
+            <button className="topbar-btn" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ display: 'none' }} aria-label="Toggle sidebar menu"><FiMenu /></button>
             <div>
               <div className="topbar-title">{title}</div>
             </div>
           </div>
           <div className="topbar-actions">
             <div style={{ position: 'relative' }}>
-              <button className="topbar-btn" onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs && unread > 0) markAllRead(); }}>
-                <FiBell />
-                {unread > 0 && <span className="notif-badge">{unread > 9 ? '9+' : unread}</span>}
+              <button
+                className="topbar-btn"
+                onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs && unread > 0) markAllRead(); }}
+                aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ''}`}
+                aria-haspopup="true"
+                aria-expanded={showNotifs}
+              >
+                <FiBell aria-hidden="true" />
+                {unread > 0 && <span className="notif-badge" aria-hidden="true">{unread > 9 ? '9+' : unread}</span>}
               </button>
               {showNotifs && (
-                <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 8, background: 'white', borderRadius: 12, boxShadow: 'var(--shadow-lg)', width: 320, maxHeight: 400, overflow: 'hidden', zIndex: 200 }}>
+                <div
+                  role="menu"
+                  aria-label="Notifications"
+                  style={{ position: 'absolute', right: 0, top: '100%', marginTop: 8, background: 'white', borderRadius: 12, boxShadow: 'var(--shadow-lg)', width: 320, maxHeight: 400, overflow: 'hidden', zIndex: 200 }}
+                >
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between' }}>
                     <strong style={{ fontSize: '0.9rem' }}>Notifications</strong>
                   </div>
-                  <div style={{ overflowY: 'auto', maxHeight: 320 }}>
+                  <div style={{ overflowY: 'auto', maxHeight: 320 }} aria-live="polite">
                     {notifications.length === 0 ? <div style={{ padding: 24, textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.85rem' }}>No notifications</div> :
                       notifications.slice(0, 10).map(n => (
-                        <div key={n._id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--gray-100)', background: n.isRead ? 'white' : '#f0f7ff' }}>
+                        <div key={n._id} role="menuitem" style={{ padding: '14px 20px', borderBottom: '1px solid var(--gray-100)', background: n.isRead ? 'white' : '#f0f7ff' }}>
                           <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 2 }}>{n.title}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{n.message}</div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--gray-400)', marginTop: 4 }}>{new Date(n.createdAt).toLocaleString()}</div>

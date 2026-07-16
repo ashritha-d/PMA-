@@ -39,6 +39,10 @@ const purchaseContractSchema = new mongoose.Schema({
   auditLog: [auditLogSchema],
   // Razorpay advance payment
   advancePaid: { type: Boolean, default: false },
+  advanceOrderId: { type: String },            // Razorpay order_id, set at create-order time —
+                                                 // verify must confirm the submitted order_id
+                                                 // matches this exact contract's order, not just
+                                                 // that *some* valid Razorpay order/payment exists.
   advancePaymentId: { type: String },          // Razorpay payment_id
   advancePaidAt: { type: Date },
   // Denormalized for fast display

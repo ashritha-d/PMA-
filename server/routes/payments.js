@@ -8,6 +8,7 @@ const Notification = require('../models/Notification');
 const Admin = require('../models/Admin');
 const { protect, adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 const getRazorpay = () =>
   new Razorpay({
@@ -18,6 +19,15 @@ const getRazorpay = () =>
 router.post('/', protect, upload.single('screenshot'), async (req, res) => {
   try {
     const data = { ...req.body, user: req.user._id };
+
+    if (data.booking) {
+      const booking = await Booking.findById(data.booking);
+      if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+      if (booking.user.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'You do not have access to this booking' });
+      }
+    }
+
     if (req.file) data.screenshotUrl = req.file.path?.startsWith('http') ? req.file.path : `/uploads/documents/${req.file.filename}`;
 
     const payment = await Payment.create(data);
@@ -30,11 +40,11 @@ router.post('/', protect, upload.single('screenshot'), async (req, res) => {
     await Notification.create({ recipient: req.user._id, recipientModel: 'User', type: 'payment', title: 'Payment Submitted', message: `Your payment of ₹${data.amount} is under verification.` });
 
     const io = req.app.get('io');
-    if (io) io.emit('admin_notification', { type: 'payment', message: 'New payment submitted' });
+    if (io) io.to('admin-room').emit('admin_notification', { type: 'payment', message: 'New payment submitted' });
 
     res.status(201).json({ success: true, payment });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -43,7 +53,7 @@ router.get('/my', protect, async (req, res) => {
     const payments = await Payment.find({ user: req.user._id }).populate('property', 'title images').sort('-createdAt');
     res.json({ success: true, payments });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -56,7 +66,7 @@ router.get('/', adminProtect, async (req, res) => {
     const revenue = await Payment.aggregate([{ $match: { status: 'completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]);
     res.json({ success: true, payments, total, pages: Math.ceil(total / limit), totalRevenue: revenue[0]?.total || 0 });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -71,7 +81,7 @@ router.put('/:id/verify', adminProtect, async (req, res) => {
     if (io) io.to(payment.user._id.toString()).emit('notification', { type: 'payment', message: `Payment ${req.body.status}` });
     res.json({ success: true, payment });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -90,7 +100,7 @@ router.post('/razorpay/create-order', protect, async (req, res) => {
 
     res.json({ success: true, order, key: process.env.RAZORPAY_KEY_ID });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -101,14 +111,15 @@ router.post('/razorpay/verify', protect, async (req, res) => {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      amount,
       paymentType = 'booking_fee',
       property,
       booking,
       notes,
     } = req.body;
 
-    // Signature verification
+    // Signature verification — proves order_id/payment_id are a genuine,
+    // unmodified pair signed by Razorpay. It does NOT by itself prove the
+    // amount, so the amount is never taken from the client (see below).
     const body = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSig = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
@@ -119,12 +130,42 @@ router.post('/razorpay/verify', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Payment verification failed — invalid signature' });
     }
 
+    // Idempotency: a resubmission of an already-verified payment must not
+    // create a second record or fire duplicate notifications.
+    const existingPayment = await Payment.findOne({ transactionId: razorpay_payment_id });
+    if (existingPayment) {
+      return res.json({ success: true, payment: existingPayment });
+    }
+
+    // Fetch the authoritative payment record from Razorpay itself — this is
+    // the only source of truth for what was actually charged. The client is
+    // never trusted for the amount.
+    const rpPayment = await getRazorpay().payments.fetch(razorpay_payment_id);
+    if (rpPayment.order_id !== razorpay_order_id) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed — order mismatch' });
+    }
+    if (rpPayment.status !== 'captured') {
+      return res.status(400).json({ success: false, message: `Payment not captured (status: ${rpPayment.status})` });
+    }
+    const verifiedAmount = rpPayment.amount / 100; // paise → rupees, from Razorpay, not req.body
+
+    // Same ownership check already applied to the manual/UPI payment route
+    // above — without it, a user's own valid Razorpay payment could be used
+    // to flip the paymentStatus of a booking that belongs to someone else.
+    if (booking) {
+      const bookingDoc = await Booking.findById(booking);
+      if (!bookingDoc) return res.status(404).json({ success: false, message: 'Booking not found' });
+      if (bookingDoc.user.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'You do not have access to this booking' });
+      }
+    }
+
     // Save verified payment
     const payment = await Payment.create({
       user: req.user._id,
       property,
       booking,
-      amount,
+      amount: verifiedAmount,
       currency: 'INR',
       paymentType,
       paymentMode: 'online',
@@ -144,7 +185,7 @@ router.post('/razorpay/verify', protect, async (req, res) => {
       recipientModel: 'User',
       type: 'payment',
       title: 'Payment Successful',
-      message: `Payment of ₹${amount} confirmed via Razorpay. Transaction ID: ${razorpay_payment_id}`,
+      message: `Payment of ₹${verifiedAmount} confirmed via Razorpay. Transaction ID: ${razorpay_payment_id}`,
     });
 
     // Notify admins
@@ -155,19 +196,19 @@ router.post('/razorpay/verify', protect, async (req, res) => {
         recipientModel: 'Admin',
         type: 'payment',
         title: 'New Razorpay Payment',
-        message: `₹${amount} received from ${req.user.firstName} ${req.user.lastName}. TxID: ${razorpay_payment_id}`,
+        message: `₹${verifiedAmount} received from ${req.user.firstName} ${req.user.lastName}. TxID: ${razorpay_payment_id}`,
       });
     }
 
     const io = req.app.get('io');
     if (io) {
       io.to(req.user._id.toString()).emit('notification', { type: 'payment', message: 'Payment confirmed!' });
-      io.emit('admin_notification', { type: 'payment', message: 'New Razorpay payment received' });
+      io.to('admin-room').emit('admin_notification', { type: 'payment', message: 'New Razorpay payment received' });
     }
 
     res.json({ success: true, payment });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

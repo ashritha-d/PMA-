@@ -4,6 +4,7 @@ const Inquiry = require('../models/Inquiry');
 const Notification = require('../models/Notification');
 const Admin = require('../models/Admin');
 const { protect, adminProtect, optionalAuth } = require('../middleware/auth');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 router.post('/', optionalAuth, async (req, res) => {
   try {
@@ -17,11 +18,11 @@ router.post('/', optionalAuth, async (req, res) => {
     }
 
     const io = req.app.get('io');
-    if (io) io.emit('admin_notification', { type: 'inquiry', message: 'New inquiry received' });
+    if (io) io.to('admin-room').emit('admin_notification', { type: 'inquiry', message: 'New inquiry received' });
 
     res.status(201).json({ success: true, inquiry });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -30,7 +31,7 @@ router.get('/my', protect, async (req, res) => {
     const inquiries = await Inquiry.find({ user: req.user._id }).populate('property', 'title').sort('-createdAt');
     res.json({ success: true, inquiries });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -42,7 +43,7 @@ router.get('/', adminProtect, async (req, res) => {
     const total = await Inquiry.countDocuments(query);
     res.json({ success: true, inquiries, total, pages: Math.ceil(total / limit) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -54,7 +55,7 @@ router.put('/:id', adminProtect, async (req, res) => {
     }
     res.json({ success: true, inquiry });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

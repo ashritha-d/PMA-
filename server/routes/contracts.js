@@ -3,6 +3,7 @@ const router = express.Router();
 const Contract = require('../models/Contract');
 const Property = require('../models/Property');
 const { adminProtect } = require('../middleware/auth');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 // List contracts
 router.get('/', adminProtect, async (req, res) => {
@@ -42,7 +43,7 @@ router.get('/', adminProtect, async (req, res) => {
 
     res.json({ success: true, contracts, total, pages: Math.ceil(total / limit), page: Number(page) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -58,7 +59,7 @@ router.get('/stats', adminProtect, async (req, res) => {
     ]);
     res.json({ success: true, active, expiringSoon, expired });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -74,7 +75,7 @@ router.get('/:id', adminProtect, async (req, res) => {
     if (!contract) return res.status(404).json({ success: false, message: 'Contract not found' });
     res.json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -91,7 +92,7 @@ router.post('/', adminProtect, async (req, res) => {
 
     res.status(201).json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -107,7 +108,7 @@ router.put('/:id', adminProtect, async (req, res) => {
     if (!contract) return res.status(404).json({ success: false, message: 'Contract not found' });
     res.json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -152,7 +153,7 @@ router.post('/:id/renew', adminProtect, async (req, res) => {
 
     res.status(201).json({ success: true, contract: newContract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -172,7 +173,7 @@ router.patch('/:id/terminate', adminProtect, async (req, res) => {
 
     res.json({ success: true, contract });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -183,7 +184,7 @@ router.delete('/:id', adminProtect, async (req, res) => {
     if (!contract) return res.status(404).json({ success: false, message: 'Contract not found' });
     res.json({ success: true, message: 'Contract deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

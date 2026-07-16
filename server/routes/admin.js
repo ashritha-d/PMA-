@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const Admin = require('../models/Admin');
 const User = require('../models/User');
 const Property = require('../models/Property');
@@ -8,16 +9,32 @@ const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const Inquiry = require('../models/Inquiry');
 const { adminProtect } = require('../middleware/auth');
+const { escapeRegex } = require('../utils/escapeRegex');
+const { sanitizeError } = require('../utils/sanitizeError');
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
 
-router.post('/login', async (req, res) => {
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post('/login', adminLoginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, setupToken } = req.body;
     let admin = await Admin.findOne({ email }).select('+password');
     if (!admin) {
       const count = await Admin.countDocuments();
-      if (count === 0) {
+      // First-run bootstrap is only allowed when an ADMIN_SETUP_TOKEN is
+      // configured server-side AND the caller supplies the matching token —
+      // otherwise an empty Admin collection would let anyone become
+      // Super Admin simply by hitting this endpoint.
+      const setupTokenConfigured = !!process.env.ADMIN_SETUP_TOKEN;
+      const setupTokenMatches = setupTokenConfigured && setupToken === process.env.ADMIN_SETUP_TOKEN;
+      if (count === 0 && setupTokenMatches) {
         admin = await Admin.create({ name: 'Super Admin', email, password, role: 'superadmin' });
         return res.json({ success: true, token: generateToken(admin._id), admin: { _id: admin._id, name: admin.name, email: admin.email, role: admin.role } });
       }
@@ -30,7 +47,7 @@ router.post('/login', async (req, res) => {
     await admin.save();
     res.json({ success: true, token: generateToken(admin._id), admin: { _id: admin._id, name: admin.name, email: admin.email, role: admin.role, photo: admin.photo } });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -71,7 +88,7 @@ router.get('/dashboard', adminProtect, async (req, res) => {
       propertyTypes,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -79,13 +96,16 @@ router.get('/users', adminProtect, async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status } = req.query;
     const query = {};
-    if (search) query.$or = [{ firstName: /search/i }, { lastName: /search/i }, { email: { $regex: search, $options: 'i' } }];
+    if (search) {
+      const safeSearch = escapeRegex(search);
+      query.$or = [{ firstName: { $regex: safeSearch, $options: 'i' } }, { lastName: { $regex: safeSearch, $options: 'i' } }, { email: { $regex: safeSearch, $options: 'i' } }];
+    }
     if (status) query.status = status;
     const users = await User.find(query).sort('-createdAt').limit(limit * 1).skip((page - 1) * limit);
     const total = await User.countDocuments(query);
     res.json({ success: true, users, total, pages: Math.ceil(total / limit) });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -94,16 +114,22 @@ router.put('/users/:id/status', adminProtect, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
     res.json({ success: true, user });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
 router.delete('/users/:id', adminProtect, async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
+    // Soft delete: a hard delete here would leave every booking, payment,
+    // review, and favorite that references this user pointing at a
+    // now-nonexistent document (orphaned references, broken .populate()
+    // calls elsewhere). Marking the account 'deleted' preserves history
+    // and referential integrity while still fully revoking access.
+    const user = await User.findByIdAndUpdate(req.params.id, { status: 'deleted' }, { new: true });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, message: 'User deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
@@ -122,7 +148,7 @@ router.get('/reports', adminProtect, async (req, res) => {
 
     res.json({ success: true, bookingTrends, revenueTrends, popularProperties, userGrowth });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 
