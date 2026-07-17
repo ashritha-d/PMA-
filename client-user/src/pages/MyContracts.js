@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiFileText, FiHome, FiCalendar, FiDollarSign, FiDownload, FiEye, FiClock, FiCheckCircle, FiXCircle, FiAlertCircle, FiLock, FiUnlock } from 'react-icons/fi';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
@@ -33,6 +33,8 @@ const formatPrice = (p) => p >= 10000000 ? `₹${(p / 10000000).toFixed(2)}Cr` :
 const ContractDetailModal = ({ contract, onClose, onPaymentDone, onSigned }) => {
   const [payingAdvance, setPayingAdvance] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [justPaid, setJustPaid] = useState(false);
+  const signButtonRef = useRef(null);
   if (!contract) return null;
   const cfg = STATUS_CONFIG[contract.status] || STATUS_CONFIG.draft;
 
@@ -88,7 +90,11 @@ const ContractDetailModal = ({ contract, onClose, onPaymentDone, onSigned }) => 
             });
             if (verifyRes.data.success) {
               toast.success(`Advance of ₹${data.contract.advanceAmount.toLocaleString()} paid! You can now sign the contract.`);
+              setJustPaid(true);
               onPaymentDone(verifyRes.data.contract);
+              // Sign button only mounts once advancePaid flips true (next
+              // render) — defer the scroll a tick so it's actually there.
+              setTimeout(() => signButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
             }
           } catch {
             toast.error('Payment verification failed. Contact support.');
@@ -298,18 +304,32 @@ const ContractDetailModal = ({ contract, onClose, onPaymentDone, onSigned }) => 
 
           {/* ── Advance paid banner ─────────────────────────────────────── */}
           {(contract.advancePaid || contract.advanceAmount === 0) && !contract.buyerSignedAt && contract.status === 'pending_signatures' && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <FiUnlock size={16} color="#16a34a" />
-              <span style={{ fontSize: '0.88rem', color: '#16a34a', fontWeight: 600 }}>
-                {contract.advanceAmount === 0 ? 'No advance required — ' : `Advance of ₹${contract.advanceAmount?.toLocaleString()} paid — `}
-                Signing is now unlocked
-              </span>
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: justPaid ? '16px' : '10px 16px', marginBottom: 16 }}>
+              {justPaid && contract.advanceAmount > 0 ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <FiCheckCircle size={18} color="#16a34a" />
+                    <span style={{ fontWeight: 800, color: '#15803d', fontSize: '1rem' }}>Payment Successful</span>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#166534', margin: 0 }}>
+                    Your advance payment has been verified. Continue signing your agreement below.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <FiUnlock size={16} color="#16a34a" />
+                  <span style={{ fontSize: '0.88rem', color: '#16a34a', fontWeight: 600 }}>
+                    {contract.advanceAmount === 0 ? 'No advance required — ' : `Advance of ₹${contract.advanceAmount?.toLocaleString()} paid — `}
+                    Signing is now unlocked
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
           {/* ── Sign Contract Button ────────────────────────────────────── */}
           {canSign && (
-            <button onClick={handleSign} disabled={signing}
+            <button ref={signButtonRef} onClick={handleSign} disabled={signing}
               style={{ width: '100%', padding: '14px', background: signing ? '#94a3b8' : '#16a34a', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: '1rem', cursor: signing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
               {signing ? 'Signing...' : '✍️  Sign Contract Digitally'}
             </button>
@@ -338,6 +358,7 @@ const ContractDetailModal = ({ contract, onClose, onPaymentDone, onSigned }) => 
 
 const MyContracts = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -345,9 +366,22 @@ const MyContracts = () => {
 
   useEffect(() => {
     API.get('/purchase-contracts/my')
-      .then(r => setContracts(r.data.contracts || []))
+      .then(r => {
+        const list = r.data.contracts || [];
+        setContracts(list);
+        // Deep-link support: PropertyDetail's sign wizard redirects here with
+        // ?contract=<id> when signing fails because the advance is unpaid —
+        // opens straight to that contract's payment gate instead of leaving
+        // the buyer to hunt for it in the list.
+        const targetId = searchParams.get('contract');
+        if (targetId) {
+          const match = list.find(c => c._id === targetId);
+          if (match) setSelectedContract(match);
+        }
+      })
       .catch(() => toast.error('Failed to load contracts'))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handlePaymentDone = useCallback((updatedContract) => {

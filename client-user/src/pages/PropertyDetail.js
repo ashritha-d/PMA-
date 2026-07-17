@@ -213,7 +213,13 @@ const PropertyDetail = () => {
   const [wizardStep, setWizardStep] = useState(1);
   const [contractForm, setContractForm] = useState({ advanceAmount: '', handoverDate: '', termsAccepted: false, paymentSchedule: [] });
   const [createdContract, setCreatedContract] = useState(null);
+  const [showAdvanceRequiredModal, setShowAdvanceRequiredModal] = useState(false);
   const canvasRef = useRef(null);
+
+  // True once the contract's advance is either fully paid or wasn't required
+  // in the first place — the single source of truth for whether the
+  // signature pad should be usable.
+  const advanceSatisfied = !createdContract || createdContract.advanceAmount === 0 || createdContract.advancePaid;
 
   useEffect(() => {
     Promise.all([
@@ -325,8 +331,24 @@ const PropertyDetail = () => {
       toast.success('Contract signed successfully!');
       setWizardStep(5);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Signing failed');
+      const message = err.response?.data?.message || 'Signing failed';
+      // The signature pad is locked whenever advanceSatisfied is false, so
+      // this specific error should be unreachable in normal use — it's a
+      // fallback for the edge case where payment state went stale between
+      // render and submit (e.g. another tab). Shown as a proper modal
+      // rather than a bare toast, matching the locked-pad panel below.
+      if (message.toLowerCase().includes('advance payment')) {
+        setShowAdvanceRequiredModal(true);
+      } else {
+        toast.error(message);
+      }
     } finally { setSubmitting(false); }
+  };
+
+  const goToPayAdvance = () => {
+    setShowAdvanceRequiredModal(false);
+    setShowPurchase(false);
+    navigate(`/my-contracts?contract=${createdContract._id}`);
   };
 
   const handleDownloadPDF = () => {
@@ -754,40 +776,65 @@ const PropertyDetail = () => {
               {/* STEP 4: Digital Signature */}
               {wizardStep === 4 && (
                 <div>
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 14, marginBottom: 20 }}>
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 14, marginBottom: 14 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <FiCheckCircle color="#16a34a" />
                       <span style={{ fontSize: '0.85rem', color: '#15803d', fontWeight: 600 }}>Contract Created: {createdContract?.contractNumber}</span>
                     </div>
                   </div>
 
-                  <p style={{ fontSize: '0.9rem', color: 'var(--gray-600)', marginBottom: 16 }}>
-                    Please sign below using your mouse or finger to digitally sign the contract.
-                  </p>
-
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <label className="form-label" style={{ margin: 0 }}>Your Digital Signature *</label>
-                      <button type="button" onClick={clearSignature} style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}><FiEdit3 size={12} /> Clear</button>
+                  {/* Payment-status indicator — only meaningful when an advance is required */}
+                  {createdContract?.advanceAmount > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: advanceSatisfied ? '#f0fdf4' : '#fffbeb', border: `1px solid ${advanceSatisfied ? '#bbf7d0' : '#fde68a'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 20 }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: advanceSatisfied ? '#15803d' : '#92400e' }}>Advance Payment</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: advanceSatisfied ? '#15803d' : '#92400e' }}>
+                        {advanceSatisfied ? `✔ ₹${createdContract.advanceAmount.toLocaleString()} Paid` : '● Pending'}
+                      </span>
                     </div>
-                    <SignatureCanvas canvasRef={canvasRef} />
-                    <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: 6 }}>Draw your signature in the box above</div>
-                  </div>
+                  )}
 
-                  <div style={{ background: '#fffbeb', borderRadius: 8, padding: 12, marginBottom: 20, fontSize: '0.8rem', color: '#92400e' }}>
-                    <strong>Legal Notice:</strong> By clicking "Sign Contract", you acknowledge that this digital signature is legally equivalent to a handwritten signature and you are entering into a binding purchase agreement.
-                  </div>
+                  {!advanceSatisfied ? (
+                    <div style={{ border: '2px dashed #d1d5db', borderRadius: 10, padding: 24, textAlign: 'center', marginBottom: 20 }}>
+                      <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>🔒</div>
+                      <div style={{ fontWeight: 700, marginBottom: 6 }}>Digital Signature Disabled</div>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: 16 }}>
+                        Complete the advance payment of <strong>₹{createdContract?.advanceAmount?.toLocaleString()}</strong> before you can sign this contract.
+                      </p>
+                      <button type="button" className="btn btn-primary" onClick={goToPayAdvance}>💳 Pay Advance Now</button>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--gray-600)', marginBottom: 16 }}>
+                        Please sign below using your mouse or finger to digitally sign the contract.
+                      </p>
+
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <label className="form-label" style={{ margin: 0 }}>Your Digital Signature *</label>
+                          <button type="button" onClick={clearSignature} style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer' }}><FiEdit3 size={12} /> Clear</button>
+                        </div>
+                        <SignatureCanvas canvasRef={canvasRef} />
+                        <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: 6 }}>Draw your signature in the box above</div>
+                      </div>
+
+                      <div style={{ background: '#fffbeb', borderRadius: 8, padding: 12, marginBottom: 20, fontSize: '0.8rem', color: '#92400e' }}>
+                        <strong>Legal Notice:</strong> By clicking "Sign Contract", you acknowledge that this digital signature is legally equivalent to a handwritten signature and you are entering into a binding purchase agreement.
+                      </div>
+                    </>
+                  )}
 
                   <div style={{ display: 'flex', gap: 12 }}>
                     <button className="btn btn-outline btn-full" onClick={() => setWizardStep(3)}><FiChevronLeft /> Back</button>
-                    <button
-                      className="btn btn-full"
-                      style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700 }}
-                      disabled={submitting}
-                      onClick={handleSign}
-                    >
-                      {submitting ? 'Signing...' : <><FiEdit3 /> Sign Contract</>}
-                    </button>
+                    {advanceSatisfied && (
+                      <button
+                        className="btn btn-full"
+                        style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700 }}
+                        disabled={submitting}
+                        onClick={handleSign}
+                      >
+                        {submitting ? 'Signing...' : <><FiEdit3 /> Sign Contract</>}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -809,12 +856,14 @@ const PropertyDetail = () => {
                       <div><span style={{ color: 'var(--gray-500)' }}>Status</span><br /><span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.78rem' }}>Pending Approval</span></div>
                       <div><span style={{ color: 'var(--gray-500)' }}>Property</span><br /><strong>{property.title}</strong></div>
                       <div><span style={{ color: 'var(--gray-500)' }}>Purchase Price</span><br /><strong>{formatPrice(property.price)}</strong></div>
+                      <div><span style={{ color: 'var(--gray-500)' }}>Advance Paid</span><br /><strong>{formatPrice(createdContract?.advanceAmount || 0)}</strong></div>
+                      <div><span style={{ color: 'var(--gray-500)' }}>Remaining Balance</span><br /><strong>{formatPrice(createdContract?.balanceAmount || 0)}</strong></div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button className="btn btn-outline" onClick={handleDownloadPDF} style={{ display: 'none' }}>
-                      <FiDownload /> Download PDF
+                    <button className="btn btn-outline" onClick={handleDownloadPDF}>
+                      <FiDownload /> Download Agreement
                     </button>
                     <button className="btn btn-primary" onClick={() => { setShowPurchase(false); navigate('/my-contracts'); }}>
                       View My Contracts
@@ -823,6 +872,31 @@ const PropertyDetail = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Advance Payment Required — fallback modal for the edge case where
+          payment state went stale between render and submit; the locked
+          panel above is the primary prevention. */}
+      {showAdvanceRequiredModal && (
+        <div className="modal-overlay" onClick={() => setShowAdvanceRequiredModal(false)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="advance-required-title" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-body" style={{ textAlign: 'center', padding: '32px 28px' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔒</div>
+              <h3 id="advance-required-title" style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: 10 }}>Advance Payment Required</h3>
+              <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: 20 }}>
+                This contract requires the advance payment before it can be digitally signed.
+              </p>
+              <div style={{ background: 'var(--gray-50)', borderRadius: 8, padding: '14px 18px', marginBottom: 24 }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--gray-400)', textTransform: 'uppercase', fontWeight: 600 }}>Advance Amount</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)' }}>{formatPrice(createdContract?.advanceAmount || 0)}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn btn-ghost btn-full" onClick={() => setShowAdvanceRequiredModal(false)}>Cancel</button>
+                <button className="btn btn-primary btn-full" onClick={goToPayAdvance}>Pay Advance</button>
+              </div>
             </div>
           </div>
         </div>
