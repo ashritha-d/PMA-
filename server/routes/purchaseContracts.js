@@ -38,6 +38,16 @@ router.post('/', protect, async (req, res) => {
     const ownerEmail = property.ownerInfo?.email || ownerUser?.email || '';
     const ownerPhone = property.ownerInfo?.phone || ownerUser?.phone || '';
 
+    // A purchase contract with no identifiable seller is a legal-document
+    // defect, not just a display gap — block creation instead of silently
+    // persisting blank owner fields onto a contract that gets signed.
+    if (!ownerName || !ownerEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'This property has no owner details on file. Please contact the property manager to add owner/agent contact info before starting a purchase contract.',
+      });
+    }
+
     const contract = await PurchaseContract.create({
       propertyId,
       buyerId: req.user._id,
