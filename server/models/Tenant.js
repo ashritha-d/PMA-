@@ -43,6 +43,8 @@ const tenantSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+tenantSchema.index({ status: 1 });
+
 tenantSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   if (!this.tenantCode) {

@@ -40,6 +40,9 @@ const finTransSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+finTransSchema.index({ transactionDate: -1 });
+finTransSchema.index({ transactionType: 1, transactionNature: 1 });
+
 finTransSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   if (!this.finTransRef) {

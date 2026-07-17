@@ -96,6 +96,7 @@ app.use('/api/servtrans', require('./routes/servTrans'));
 app.use('/api/activity-logs', require('./routes/activityLogs'));
 app.use('/api/purchase-contracts', require('./routes/purchaseContracts'));
 app.use('/api/ai', require('./routes/ai'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 

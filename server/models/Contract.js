@@ -38,6 +38,8 @@ const contractSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+contractSchema.index({ status: 1, contractEndDate: 1 });
+
 contractSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   if (!this.contractNumber) {

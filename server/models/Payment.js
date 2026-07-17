@@ -21,6 +21,8 @@ const paymentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+paymentSchema.index({ status: 1, createdAt: -1 });
+
 paymentSchema.pre('save', function (next) {
   if (!this.paymentId) {
     this.paymentId = 'PAY' + Date.now().toString().slice(-8) + Math.random().toString(36).substr(2, 4).toUpperCase();
