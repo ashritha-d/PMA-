@@ -1,4 +1,11 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+// Some routers/ISP resolvers refuse SRV record queries, which breaks
+// mongodb+srv:// lookups even though the machine otherwise has working
+// internet. Pointing Node's resolver at a public DNS server sidesteps that
+// without requiring any OS-level network configuration change.
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 // A transient connection failure (network blip, DNS hiccup, Atlas
 // maintenance) used to kill the entire process via process.exit(1), taking

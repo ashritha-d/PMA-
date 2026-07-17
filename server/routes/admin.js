@@ -8,6 +8,7 @@ const Property = require('../models/Property');
 const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const Inquiry = require('../models/Inquiry');
+const ServTrans = require('../models/ServTrans');
 const { adminProtect } = require('../middleware/auth');
 const { escapeRegex } = require('../utils/escapeRegex');
 const { sanitizeError } = require('../utils/sanitizeError');
@@ -55,7 +56,13 @@ router.get('/me', adminProtect, (req, res) => res.json({ success: true, admin: r
 
 router.get('/dashboard', adminProtect, async (req, res) => {
   try {
-    const [totalProperties, totalUsers, totalBookings, totalPayments, pendingInquiries, recentBookings, recentPayments] = await Promise.all([
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [
+      totalProperties, totalUsers, totalBookings, totalPayments, pendingInquiries, recentBookings, recentPayments,
+      openTickets, emergencyTickets, overdueTickets, resolvedToday, avgResolution, recentMaintenance,
+    ] = await Promise.all([
       Property.countDocuments({ isActive: true }),
       User.countDocuments(),
       Booking.countDocuments(),
@@ -63,6 +70,15 @@ router.get('/dashboard', adminProtect, async (req, res) => {
       Inquiry.countDocuments({ status: 'new' }),
       Booking.find().sort('-createdAt').limit(5).populate('property', 'title').populate('user', 'firstName lastName email'),
       Payment.find().sort('-createdAt').limit(5).populate('property', 'title').populate('user', 'firstName lastName'),
+      ServTrans.countDocuments({ status: { $in: ['open', 'assigned', 'in_progress'] } }),
+      ServTrans.countDocuments({ priority: 'emergency', status: { $ne: 'closed' } }),
+      ServTrans.countDocuments({ resolvedAt: null, slaDueAt: { $lt: new Date() } }),
+      ServTrans.countDocuments({ resolvedAt: { $gte: startOfToday } }),
+      ServTrans.aggregate([
+        { $match: { resolvedAt: { $ne: null } } },
+        { $group: { _id: null, avgHours: { $avg: { $divide: [{ $subtract: ['$resolvedAt', '$createdAt'] }, 3600000] } } } },
+      ]),
+      ServTrans.find().sort('-createdAt').limit(5).populate('propertyId', 'title propertyCode'),
     ]);
 
     const monthlyBookings = await Booking.aggregate([
@@ -82,8 +98,16 @@ router.get('/dashboard', adminProtect, async (req, res) => {
         totalRevenue: totalPayments[0]?.total || 0,
         pendingInquiries,
       },
+      maintenanceStats: {
+        openTickets,
+        emergencyTickets,
+        overdueTickets,
+        resolvedToday,
+        avgResolutionHours: avgResolution[0]?.avgHours || 0,
+      },
       recentBookings,
       recentPayments,
+      recentMaintenance,
       monthlyBookings,
       propertyTypes,
     });

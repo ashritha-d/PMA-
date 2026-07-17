@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const SLA_HOURS = { emergency: 4, high: 24, medium: 72, low: 168 };
+
 const servTransSchema = new mongoose.Schema({
   seqRef: { type: String, unique: true },
   // Linked entities
@@ -21,6 +23,13 @@ const servTransSchema = new mongoose.Schema({
     enum: ['open', 'assigned', 'in_progress', 'completed', 'closed'],
     default: 'open',
   },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'emergency'],
+    default: 'medium',
+  },
+  slaDueAt: { type: Date },
+  resolvedAt: { type: Date },
   // Admin / technician fields
   attendedBy: { type: String, trim: true },     // PDF: Service Request Attended by
   startDate: { type: Date },                     // PDF: Service Request Start Date
@@ -34,12 +43,28 @@ const servTransSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+}, { toJSON: { virtuals: true }, toObject: { virtuals: true } });
+
+servTransSchema.virtual('isOverdue').get(function () {
+  return !this.resolvedAt && !!this.slaDueAt && this.slaDueAt.getTime() < Date.now();
 });
+
+servTransSchema.index({ status: 1 });
+servTransSchema.index({ priority: 1 });
+servTransSchema.index({ createdAt: -1 });
 
 servTransSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   if (!this.seqRef) {
     this.seqRef = 'SRV' + Date.now().toString().slice(-9);
+  }
+  if (!this.slaDueAt) {
+    const hours = SLA_HOURS[this.priority] || SLA_HOURS.medium;
+    const base = this.requestDate || Date.now();
+    this.slaDueAt = new Date(new Date(base).getTime() + hours * 3600000);
+  }
+  if (this.isModified('status') && this.status === 'completed' && !this.resolvedAt) {
+    this.resolvedAt = Date.now();
   }
   next();
 });

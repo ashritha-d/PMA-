@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { FiGrid, FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare, FiStar, FiFileText, FiBarChart2, FiLogOut, FiBell, FiMenu, FiTag, FiUserCheck, FiKey, FiClipboard, FiTool, FiShoppingCart } from 'react-icons/fi';
+import { FiGrid, FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare, FiStar, FiFileText, FiBarChart2, FiLogOut, FiBell, FiMenu, FiTag, FiUserCheck, FiKey, FiClipboard, FiTool, FiShoppingCart, FiActivity } from 'react-icons/fi';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import API from '../api/axios';
 import { io } from 'socket.io-client';
@@ -28,6 +28,7 @@ const NAV_ITEMS = [
   { section: 'Management' },
   { path: '/cms', icon: <FiFileText />, label: 'CMS / Content' },
   { path: '/reports', icon: <FiBarChart2 />, label: 'Reports' },
+  { path: '/activity-log', icon: <FiActivity />, label: 'Activity Log' },
 ];
 
 const AdminLayout = ({ children }) => {

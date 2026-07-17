@@ -26,6 +26,13 @@ const STATUS_OPTIONS = [
   { value: 'closed',      label: 'Closed' },
 ];
 
+const PRIORITY_OPTIONS = [
+  { value: 'low',       label: 'Low' },
+  { value: 'medium',    label: 'Medium' },
+  { value: 'high',      label: 'High' },
+  { value: 'emergency', label: 'Emergency' },
+];
+
 /* ---------- reusables ---------- */
 
 const SECTION = ({ title, children }) => (
@@ -89,6 +96,7 @@ const EMPTY = {
   description: '',
   requestDate: new Date().toISOString().slice(0, 10),
   status: 'open',
+  priority: 'medium',
   attendedBy: '',
   startDate: '',
   endDate: '',
@@ -140,6 +148,7 @@ const ServTransForm = () => {
         description: r.description || '',
         requestDate: r.requestDate ? r.requestDate.slice(0, 10) : '',
         status: r.status || 'open',
+        priority: r.priority || 'medium',
         attendedBy: r.attendedBy || '',
         startDate: r.startDate ? r.startDate.slice(0, 10) : '',
         endDate: r.endDate ? r.endDate.slice(0, 10) : '',
@@ -212,6 +221,11 @@ const ServTransForm = () => {
         <Field label="Status">
           <select className="form-select" value={form.status} onChange={set('status')}>
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Priority">
+          <select className="form-select" value={form.priority} onChange={set('priority')}>
+            {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Field>
         <Field label="Description" required span2>

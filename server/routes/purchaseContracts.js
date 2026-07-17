@@ -10,6 +10,7 @@ const Notification = require('../models/Notification');
 const Admin = require('../models/Admin');
 const { protect, adminProtect } = require('../middleware/auth');
 const { sanitizeError } = require('../utils/sanitizeError');
+const { logActivity } = require('../utils/activityLogger');
 
 const getRazorpay = () => new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -217,6 +218,13 @@ router.post('/:id/sign', protect, async (req, res) => {
 
     const io = req.app.get('io');
     if (io) io.to('admin-room').emit('admin_notification', { type: 'contract', message: 'Contract signed by buyer' });
+
+    logActivity({
+      action: 'signed', module: 'Contract',
+      referenceId: contract._id, referenceLabel: contract.contractNumber,
+      description: `Contract ${contract.contractNumber} signed by buyer`,
+      metadata: { signedBy: req.user._id, role: 'buyer' },
+    });
 
     res.json({ success: true, contract, message: 'Contract signed successfully. Awaiting admin approval.' });
   } catch (err) {

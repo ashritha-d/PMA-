@@ -5,6 +5,7 @@ const Property = require('../models/Property');
 const { adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { sanitizeError } = require('../utils/sanitizeError');
+const { logActivity } = require('../utils/activityLogger');
 
 const TENANT_DOC_FIELDS = [
   { name: 'passportCopy', maxCount: 1 },
@@ -83,6 +84,12 @@ router.post('/', adminProtect, upload.fields(TENANT_DOC_FIELDS), async (req, res
     if (tenant.propertyId) {
       await Property.findByIdAndUpdate(tenant.propertyId, { status: 'rented' });
     }
+
+    logActivity({
+      admin: req.admin._id, action: 'created', module: 'Tenant',
+      referenceId: tenant._id, referenceLabel: tenant.tenantCode,
+      description: `Tenant ${tenant.firstName} ${tenant.lastName} added`,
+    });
 
     res.status(201).json({ success: true, tenant });
   } catch (err) {

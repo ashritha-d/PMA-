@@ -8,6 +8,7 @@ const upload = require('../middleware/upload');
 const path = require('path');
 const { escapeRegex } = require('../utils/escapeRegex');
 const { sanitizeError } = require('../utils/sanitizeError');
+const { logActivity } = require('../utils/activityLogger');
 
 router.get('/', optionalAuth, async (req, res) => {
   try {
@@ -66,6 +67,12 @@ router.post('/', adminProtect, upload.array('images', 10), async (req, res) => {
       await Notification.create({ recipient: a._id, recipientModel: 'Admin', type: 'property', title: 'New Property Added', message: `Property "${property.title}" has been added.` });
     }
 
+    logActivity({
+      admin: req.admin._id, action: 'created', module: 'Property',
+      referenceId: property._id, referenceLabel: property.propertyCode,
+      description: `Property "${property.title}" created`,
+    });
+
     res.status(201).json({ success: true, property });
   } catch (err) {
     res.status(500).json({ success: false, message: sanitizeError(err) });
@@ -89,6 +96,12 @@ router.put('/:id', adminProtect, upload.array('images', 10), async (req, res) =>
 
     const io = req.app.get('io');
     if (io) io.emit('property_update', { type: 'update', property: updated });
+
+    logActivity({
+      admin: req.admin._id, action: 'updated', module: 'Property',
+      referenceId: updated._id, referenceLabel: updated.propertyCode,
+      description: `Property "${updated.title}" updated`,
+    });
 
     res.json({ success: true, property: updated });
   } catch (err) {

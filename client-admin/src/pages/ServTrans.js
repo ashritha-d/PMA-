@@ -37,6 +37,22 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const PRIORITY = {
+  low:       { label: 'Low',       bg: '#f3f4f6', color: '#374151' },
+  medium:    { label: 'Medium',    bg: '#dbeafe', color: '#1e40af' },
+  high:      { label: 'High',      bg: '#fef3c7', color: '#92400e' },
+  emergency: { label: 'Emergency', bg: '#fee2e2', color: '#991b1b' },
+};
+
+const PriorityBadge = ({ priority }) => {
+  const p = PRIORITY[priority] || PRIORITY.medium;
+  return (
+    <span style={{ background: p.bg, color: p.color, padding: '2px 10px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700 }}>
+      {p.label}
+    </span>
+  );
+};
+
 const fmtMoney = (n) => n != null && n !== '' ? `₹${Number(n).toLocaleString()}` : '—';
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB') : '—';
 
@@ -205,8 +221,14 @@ const ServTrans = () => {
                       </td>
                       <td style={{ fontSize: '0.8rem' }}>{fmt(r.requestDate)}</td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <StatusBadge status={r.status} />
+                          <PriorityBadge priority={r.priority} />
+                          {r.isOverdue && (
+                            <span style={{ background: '#fee2e2', color: '#991b1b', padding: '2px 10px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700 }}>
+                              Overdue
+                            </span>
+                          )}
                           {canAdvance && (
                             <button
                               disabled={advancing === r._id}

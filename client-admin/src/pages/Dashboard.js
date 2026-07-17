@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare } from 'react-icons/fi';
+import { FiHome, FiUsers, FiCalendar, FiDollarSign, FiMessageSquare, FiTool, FiAlertTriangle, FiClock, FiCheckCircle } from 'react-icons/fi';
 import API from '../api/axios';
+import ActivityFeed from '../components/ActivityFeed';
 
 const COLORS = ['#1a56db', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -10,15 +12,34 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const refreshTimer = useRef(null);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     API.get('/admin/dashboard').then(r => setData(r.data)).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Reuse the same admin_notification signal bookings/payments/maintenance
+  // already emit (see AdminLayout.js) to live-refresh the dashboard instead
+  // of introducing a parallel socket event just for this page.
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+    socket.on('connect', () => {
+      const token = localStorage.getItem('adminToken');
+      if (token) socket.emit('admin_join', token);
+    });
+    socket.on('admin_notification', () => {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(fetchData, 800);
+    });
+    return () => { clearTimeout(refreshTimer.current); socket.disconnect(); };
+  }, [fetchData]);
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
   if (!data) return <div>Failed to load dashboard</div>;
 
-  const { stats, recentBookings, recentPayments, monthlyBookings, propertyTypes } = data;
+  const { stats, maintenanceStats, recentBookings, recentPayments, recentMaintenance, monthlyBookings, propertyTypes } = data;
 
   const STATS_CARDS = [
     { label: 'Total Properties', value: stats.totalProperties, icon: <FiHome />, color: '#dbeafe', iconColor: '#1a56db' },
@@ -28,16 +49,41 @@ const Dashboard = () => {
     { label: 'Pending Inquiries', value: stats.pendingInquiries, icon: <FiMessageSquare />, color: '#ede9fe', iconColor: '#8b5cf6' },
   ];
 
+  const MAINTENANCE_CARDS = [
+    { label: 'Open Tickets', value: maintenanceStats.openTickets, icon: <FiTool />, color: '#dbeafe', iconColor: '#1a56db' },
+    { label: 'Emergency', value: maintenanceStats.emergencyTickets, icon: <FiAlertTriangle />, color: '#fee2e2', iconColor: '#ef4444' },
+    { label: 'Overdue (SLA)', value: maintenanceStats.overdueTickets, icon: <FiClock />, color: '#fef3c7', iconColor: '#f59e0b' },
+    { label: 'Resolved Today', value: maintenanceStats.resolvedToday, icon: <FiCheckCircle />, color: '#d1fae5', iconColor: '#10b981' },
+    { label: 'Avg Resolution', value: `${maintenanceStats.avgResolutionHours.toFixed(1)}h`, icon: <FiClock />, color: '#ede9fe', iconColor: '#8b5cf6' },
+  ];
+
   const chartData = monthlyBookings.map(m => ({ name: MONTHS[(m._id.month - 1)], bookings: m.count }));
   const pieData = propertyTypes.map(p => ({ name: p._id, value: p.count }));
 
-  const statusColor = (s) => ({ pending: '#f59e0b', confirmed: '#10b981', rejected: '#ef4444', completed: '#3b82f6', cancelled: '#6b7280' }[s] || '#6b7280');
+  const statusColor = (s) => ({
+    pending: '#f59e0b', confirmed: '#10b981', rejected: '#ef4444', completed: '#3b82f6', cancelled: '#6b7280',
+    open: '#991b1b', assigned: '#92400e', in_progress: '#1e40af', closed: '#374151',
+    low: '#374151', medium: '#1e40af', high: '#92400e', emergency: '#991b1b',
+  }[s] || '#6b7280');
 
   return (
     <div>
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20, marginBottom: 28 }}>
         {STATS_CARDS.map((s, i) => (
+          <div key={i} className="stat-card">
+            <div className="stat-icon" style={{ background: s.color, color: s.iconColor }}>{s.icon}</div>
+            <div>
+              <div className="stat-value">{s.value}</div>
+              <div className="stat-label">{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Maintenance Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20, marginBottom: 28 }}>
+        {MAINTENANCE_CARDS.map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-icon" style={{ background: s.color, color: s.iconColor }}>{s.icon}</div>
             <div>
@@ -126,6 +172,32 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Recent Maintenance */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-header">
+          <h3>Recent Maintenance</h3>
+          <Link to="/servtrans" className="btn btn-ghost btn-sm">View All</Link>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Ref #</th><th>Property</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody>
+              {recentMaintenance.map(r => (
+                <tr key={r._id}>
+                  <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{r.seqRef}</td>
+                  <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.propertyId?.title || '-'}</td>
+                  <td><span style={{ background: statusColor(r.priority) + '22', color: statusColor(r.priority), padding: '3px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700 }}>{r.priority}</span></td>
+                  <td><span style={{ background: statusColor(r.status) + '22', color: statusColor(r.status), padding: '3px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700 }}>{r.status}</span></td>
+                </tr>
+              ))}
+              {recentMaintenance.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>No maintenance requests yet</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <ActivityFeed />
     </div>
   );
 };

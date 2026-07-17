@@ -9,6 +9,7 @@ const Admin = require('../models/Admin');
 const { protect, adminProtect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { sanitizeError } = require('../utils/sanitizeError');
+const { logActivity } = require('../utils/activityLogger');
 
 const getRazorpay = () =>
   new Razorpay({
@@ -205,6 +206,13 @@ router.post('/razorpay/verify', protect, async (req, res) => {
       io.to(req.user._id.toString()).emit('notification', { type: 'payment', message: 'Payment confirmed!' });
       io.to('admin-room').emit('admin_notification', { type: 'payment', message: 'New Razorpay payment received' });
     }
+
+    logActivity({
+      action: 'created', module: 'Payment',
+      referenceId: payment._id, referenceLabel: razorpay_payment_id,
+      description: `Payment of ₹${verifiedAmount} completed via Razorpay`,
+      metadata: { user: req.user._id },
+    });
 
     res.json({ success: true, payment });
   } catch (err) {
