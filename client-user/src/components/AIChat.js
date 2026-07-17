@@ -1,8 +1,20 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { FiMic, FiPlay, FiPause, FiSquare, FiRotateCcw, FiVolumeX } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import useSpeechRecognition from '../hooks/useSpeechRecognition';
+import useSpeechSynthesis from '../hooks/useSpeechSynthesis';
 
 const API_BASE = process.env.REACT_APP_API_URL
   ? `${process.env.REACT_APP_API_URL}/api`
   : '/api';
+
+const LANGUAGES = [
+  { code: 'en-US', label: 'English' },
+  { code: 'hi-IN', label: 'Hindi' },
+  { code: 'te-IN', label: 'Telugu' },
+  { code: 'ta-IN', label: 'Tamil' },
+  { code: 'kn-IN', label: 'Kannada' },
+];
 
 const BOT_AVATAR = (
   <div style={{
@@ -22,8 +34,15 @@ const USER_AVATAR = (
   }}>U</div>
 );
 
-function Message({ msg }) {
+const iconBtnStyle = { background: 'none', border: 'none', cursor: 'pointer', padding: 3, display: 'flex', color: '#9ca3af' };
+
+function Message({ msg, index, synth, onPlay }) {
   const isBot = msg.role === 'assistant';
+  const isCurrent = synth?.currentId === index;
+  const isPausedHere = isCurrent && synth?.paused;
+  const isPlayingHere = isCurrent && synth?.speaking && !synth?.paused;
+  const canPlay = isBot && !msg.streaming && msg.content;
+
   return (
     <div style={{
       display: 'flex', gap: 10, alignItems: 'flex-start',
@@ -31,20 +50,40 @@ function Message({ msg }) {
       marginBottom: 16,
     }}>
       {isBot ? BOT_AVATAR : USER_AVATAR}
-      <div style={{
-        maxWidth: '75%',
-        background: isBot ? '#f1f5f9' : 'linear-gradient(135deg, #1a56db, #3b82f6)',
-        color: isBot ? '#111827' : 'white',
-        borderRadius: isBot ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
-        padding: '10px 14px',
-        fontSize: '0.875rem',
-        lineHeight: 1.6,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}>
-        {msg.content}
-        {msg.streaming && (
-          <span style={{ display: 'inline-block', animation: 'blink 1s step-end infinite', marginLeft: 2 }}>▍</span>
+      <div style={{ maxWidth: '75%' }}>
+        <div style={{
+          background: isBot ? '#f1f5f9' : 'linear-gradient(135deg, #1a56db, #3b82f6)',
+          color: isBot ? '#111827' : 'white',
+          borderRadius: isBot ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
+          padding: '10px 14px',
+          fontSize: '0.875rem',
+          lineHeight: 1.6,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}>
+          {msg.content}
+          {msg.streaming && (
+            <span style={{ display: 'inline-block', animation: 'blink 1s step-end infinite', marginLeft: 2 }}>▍</span>
+          )}
+        </div>
+
+        {canPlay && synth?.supported && (
+          <div style={{ display: 'flex', gap: 2, marginTop: 4 }}>
+            {isPlayingHere ? (
+              <button style={iconBtnStyle} title="Pause" aria-label="Pause reading response" onClick={synth.pause}><FiPause size={13} /></button>
+            ) : (
+              <button style={iconBtnStyle} title={isPausedHere ? 'Resume' : 'Play'} aria-label={isPausedHere ? 'Resume reading response' : 'Read response aloud'} onClick={() => (isPausedHere ? synth.resume() : onPlay(index, msg.content))}><FiPlay size={13} /></button>
+            )}
+            {isCurrent && (synth.speaking || synth.paused) && (
+              <button style={iconBtnStyle} title="Stop" aria-label="Stop reading response" onClick={synth.stop}><FiSquare size={13} /></button>
+            )}
+            <button style={iconBtnStyle} title="Replay" aria-label="Replay response" onClick={() => onPlay(index, msg.content)}><FiRotateCcw size={13} /></button>
+          </div>
+        )}
+        {canPlay && !synth?.supported && (
+          <div style={{ marginTop: 4 }} title="Voice output isn't supported in this browser">
+            <FiVolumeX size={13} color="#d1d5db" />
+          </div>
         )}
       </div>
     </div>
@@ -65,9 +104,27 @@ export default function AIChat() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState('en-US');
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
+  // Set by the mic handler, read once the in-flight response finishes
+  // streaming — auto-speak only fires for voice-initiated turns, not typed
+  // ones (avoids surprise audio on an otherwise silent text chat).
+  const voiceInitiatedRef = useRef(false);
+
+  const synth = useSpeechSynthesis();
+  const { speak: speakResponse } = synth;
+  // sendMessage is defined further below via useCallback; referencing it
+  // here is safe because this callback only ever fires later (async, on a
+  // real speech event) — by then the render below it has already run.
+  const recognition = useSpeechRecognition({
+    lang: language,
+    onFinalResult: (text) => {
+      voiceInitiatedRef.current = true;
+      sendMessage(text);
+    },
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,6 +133,30 @@ export default function AIChat() {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
+
+  // Surface mic permission/other recognition errors once, when they occur.
+  useEffect(() => {
+    if (!recognition.error) return;
+    if (recognition.error === 'not-allowed' || recognition.error === 'permission-denied') {
+      toast.error('Microphone access denied — allow it in your browser settings to use voice input.');
+    } else if (recognition.error !== 'no-speech' && recognition.error !== 'aborted') {
+      toast.error('Voice input failed. Please try again.');
+    }
+  }, [recognition.error]);
+
+  // Ctrl+M toggles listening while the chat panel is open.
+  useEffect(() => {
+    if (!open || !recognition.supported) return;
+    const handler = (e) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        recognition.listening ? recognition.stop() : recognition.start();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, recognition.listening, recognition.supported]);
 
   const sendMessage = useCallback(async (text) => {
     const userText = (text || input).trim();
@@ -141,6 +222,10 @@ export default function AIChat() {
               updateMsg(accumulated, true);
             } else if (payload.type === 'done') {
               updateMsg(accumulated, false);
+              if (voiceInitiatedRef.current) {
+                voiceInitiatedRef.current = false;
+                speakResponse(placeholderIdx, accumulated, language);
+              }
             } else if (payload.type === 'error') {
               updateMsg(payload.message, false);
             }
@@ -163,7 +248,7 @@ export default function AIChat() {
       setLoading(false);
       abortRef.current = null;
     }
-  }, [input, loading, messages]);
+  }, [input, loading, messages, speakResponse, language]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -174,8 +259,12 @@ export default function AIChat() {
 
   const handleClose = () => {
     if (abortRef.current) abortRef.current.abort();
+    recognition.stop();
+    synth.stop();
     setOpen(false);
   };
+
+  const handlePlay = (index, text) => synth.speak(index, text, language);
 
   return (
     <>
@@ -194,6 +283,10 @@ export default function AIChat() {
         }
         .ai-toggle-btn:active { transform: scale(0.96) !important; }
         .ai-suggest-btn:hover { background: #dbeafe !important; color: #1a56db !important; }
+        @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+        .ai-mic-btn.listening { animation: micPulse 1.2s ease-in-out infinite; }
+        .ai-mic-btn:not(:disabled):hover { background: #e5e7eb !important; }
+        .ai-mic-btn.listening:hover { background: #dc2626 !important; }
         @media (max-width: 480px) {
           .ai-toggle-btn { bottom: 110px !important; right: 20px !important; }
           .ai-chat-panel-wrap { bottom: 178px !important; right: 8px !important; width: calc(100vw - 16px) !important; }
@@ -296,7 +389,7 @@ export default function AIChat() {
             flexDirection: 'column',
           }}>
             {messages.map((msg, i) => (
-              <Message key={i} msg={msg} />
+              <Message key={i} msg={msg} index={i} synth={synth} onPlay={handlePlay} />
             ))}
 
             {/* Suggested prompts — show only at start */}
@@ -327,6 +420,30 @@ export default function AIChat() {
             <div ref={bottomRef} />
           </div>
 
+          {/* Voice toolbar */}
+          <div style={{
+            borderTop: '1px solid #f1f5f9',
+            padding: '6px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexShrink: 0,
+            background: '#fafafa',
+          }}>
+            <select
+              value={language}
+              onChange={e => setLanguage(e.target.value)}
+              aria-label="Voice language"
+              style={{ border: 'none', background: 'none', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer', outline: 'none' }}
+            >
+              {LANGUAGES.map(l => <option key={l.code} value={l.code}>🌐 {l.label}</option>)}
+            </select>
+            {recognition.supported && (
+              <span style={{ fontSize: '0.7rem', color: '#d1d5db' }}>Ctrl+M to talk</span>
+            )}
+          </div>
+
           {/* Input */}
           <div style={{
             borderTop: '1px solid #f1f5f9',
@@ -340,15 +457,15 @@ export default function AIChat() {
             <textarea
               ref={inputRef}
               rows={1}
-              value={input}
+              value={recognition.listening ? recognition.interimTranscript : input}
               onChange={e => {
                 setInput(e.target.value);
                 e.target.style.height = 'auto';
                 e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
               }}
               onKeyDown={handleKey}
-              placeholder="Ask about properties, lease, payments..."
-              disabled={loading}
+              placeholder={recognition.listening ? 'Listening…' : 'Ask about properties, lease, payments...'}
+              disabled={loading || recognition.listening}
               style={{
                 flex: 1,
                 resize: 'none',
@@ -368,6 +485,29 @@ export default function AIChat() {
               onFocus={e => e.target.style.borderColor = '#1a56db'}
               onBlur={e => e.target.style.borderColor = '#e5e7eb'}
             />
+            <button
+              className={recognition.listening ? 'ai-mic-btn listening' : 'ai-mic-btn'}
+              onClick={() => (recognition.listening ? recognition.stop() : recognition.start())}
+              disabled={!recognition.supported || loading}
+              title={recognition.supported ? (recognition.listening ? 'Stop listening' : 'Talk to AI (Ctrl+M)') : "Voice input isn't supported in this browser — try Chrome or Edge"}
+              aria-label={recognition.listening ? 'Stop voice input' : 'Start voice input'}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: recognition.listening ? '#ef4444' : '#f1f5f9',
+                border: 'none',
+                cursor: !recognition.supported || loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                opacity: !recognition.supported ? 0.4 : 1,
+                transition: 'background 0.15s',
+              }}
+            >
+              <FiMic size={16} color={recognition.listening ? 'white' : '#6b7280'} />
+            </button>
             <button
               className="ai-send-btn"
               onClick={() => sendMessage()}
