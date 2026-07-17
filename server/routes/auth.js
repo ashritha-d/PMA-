@@ -7,6 +7,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { protect } = require('../middleware/auth');
 const { sanitizeError } = require('../utils/sanitizeError');
+const { sendEmail } = require('../utils/email');
 
 const registerValidation = [
   body('firstName').trim().notEmpty().withMessage('First name is required'),
@@ -39,41 +40,27 @@ const handleValidation = (req, res, next) => {
 };
 
 const sendOTPEmail = async (toEmail, userName, otp) => {
-  const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_SECRET_KEY}`).toString('base64');
-  const res = await fetch('https://api.mailjet.com/v3.1/send', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      Messages: [{
-        From: { Email: process.env.EMAIL_USER, Name: 'PropManage' },
-        To: [{ Email: toEmail, Name: userName }],
-        Subject: 'Password Reset OTP – PropManage',
-        HTMLPart: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;background:#f9f9f9;border-radius:12px;overflow:hidden;">
-          <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:32px;text-align:center;">
-            <h1 style="color:#fff;font-size:26px;margin:0;">Prop<span style="color:#e94560;">Manage</span></h1>
-          </div>
-          <div style="padding:32px;">
-            <h2 style="color:#1a1a2e;margin-bottom:8px;">Hi ${userName},</h2>
-            <p style="color:#555;margin-bottom:24px;">We received a request to reset your PropManage password. Use the OTP below — it expires in <strong>10 minutes</strong>.</p>
-            <div style="background:#1a1a2e;color:#fff;font-size:36px;font-weight:700;letter-spacing:10px;text-align:center;padding:20px;border-radius:8px;margin-bottom:24px;">
-              ${otp}
-            </div>
-            <p style="color:#888;font-size:13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
-          </div>
-          <div style="background:#eee;padding:16px;text-align:center;font-size:12px;color:#999;">© 2026 PropManage. All rights reserved.</div>
+  await sendEmail({
+    toEmail,
+    toName: userName,
+    subject: 'Password Reset OTP – PropManage',
+    html: `
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;background:#f9f9f9;border-radius:12px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:32px;text-align:center;">
+        <h1 style="color:#fff;font-size:26px;margin:0;">Prop<span style="color:#e94560;">Manage</span></h1>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#1a1a2e;margin-bottom:8px;">Hi ${userName},</h2>
+        <p style="color:#555;margin-bottom:24px;">We received a request to reset your PropManage password. Use the OTP below — it expires in <strong>10 minutes</strong>.</p>
+        <div style="background:#1a1a2e;color:#fff;font-size:36px;font-weight:700;letter-spacing:10px;text-align:center;padding:20px;border-radius:8px;margin-bottom:24px;">
+          ${otp}
         </div>
-        `,
-      }],
-    }),
+        <p style="color:#888;font-size:13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+      </div>
+      <div style="background:#eee;padding:16px;text-align:center;font-size:12px;color:#999;">© 2026 PropManage. All rights reserved.</div>
+    </div>
+    `,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.ErrorMessage || err.message || 'Failed to send email');
-  }
 };
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });

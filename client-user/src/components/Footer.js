@@ -47,6 +47,7 @@ const Footer = () => (
       <div className="footer-bottom">
         <p style={{ fontSize: '0.85rem', opacity: 0.6 }}>© {new Date().getFullYear()} PropManage. All rights reserved.</p>
         <div style={{ display: 'flex', gap: 24, fontSize: '0.85rem', opacity: 0.6 }}>
+          <Link to="/tenant-login">Tenant Login</Link>
           <a href="/privacy">Privacy Policy</a>
           <a href="/terms">Terms of Service</a>
         </div>

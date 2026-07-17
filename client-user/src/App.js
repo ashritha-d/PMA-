@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CompareProvider } from './context/CompareContext';
+import { TenantAuthProvider, useTenantAuth } from './context/TenantAuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WhatsAppFloat from './components/WhatsAppFloat';
@@ -25,10 +26,17 @@ const Contact = lazy(() => import('./pages/Contact'));
 const About = lazy(() => import('./pages/About'));
 const MyContracts = lazy(() => import('./pages/MyContracts'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const TenantLogin = lazy(() => import('./pages/TenantLogin'));
+const TenantPortal = lazy(() => import('./pages/TenantPortal'));
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" />;
+};
+
+const TenantPrivateRoute = ({ children }) => {
+  const { isTenantAuthenticated } = useTenantAuth();
+  return isTenantAuthenticated ? children : <Navigate to="/tenant-login" />;
 };
 
 const Loading = () => (
@@ -40,37 +48,41 @@ const Loading = () => (
 function App() {
   return (
     <AuthProvider>
-      <CompareProvider>
-        <BrowserRouter>
-          <Navbar />
-          <Suspense fallback={<Loading />}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/properties" element={<Properties />} />
-              <Route path="/properties/:id" element={<PropertyDetail />} />
-              <Route path="/compare" element={<PropertyComparison />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-              <Route path="/bookings" element={<PrivateRoute><Bookings /></PrivateRoute>} />
-              <Route path="/favorites" element={<PrivateRoute><Favorites /></PrivateRoute>} />
-              <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
-              <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
-              <Route path="/my-properties/:id" element={<PrivateRoute><UserPropertyDetail /></PrivateRoute>} />
-              <Route path="/my-contracts" element={<PrivateRoute><MyContracts /></PrivateRoute>} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </Suspense>
-          <Footer />
-          <WhatsAppFloat />
-          <AIChat />
-          <PropertyComparisonBar />
-          <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '10px', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem' } }} />
-        </BrowserRouter>
-      </CompareProvider>
+      <TenantAuthProvider>
+        <CompareProvider>
+          <BrowserRouter>
+            <Navbar />
+            <Suspense fallback={<Loading />}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/properties" element={<Properties />} />
+                <Route path="/properties/:id" element={<PropertyDetail />} />
+                <Route path="/compare" element={<PropertyComparison />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/bookings" element={<PrivateRoute><Bookings /></PrivateRoute>} />
+                <Route path="/favorites" element={<PrivateRoute><Favorites /></PrivateRoute>} />
+                <Route path="/payments" element={<PrivateRoute><Payments /></PrivateRoute>} />
+                <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+                <Route path="/my-properties/:id" element={<PrivateRoute><UserPropertyDetail /></PrivateRoute>} />
+                <Route path="/my-contracts" element={<PrivateRoute><MyContracts /></PrivateRoute>} />
+                <Route path="/tenant-login" element={<TenantLogin />} />
+                <Route path="/tenant-portal" element={<TenantPrivateRoute><TenantPortal /></TenantPrivateRoute>} />
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </Suspense>
+            <Footer />
+            <WhatsAppFloat />
+            <AIChat />
+            <PropertyComparisonBar />
+            <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '10px', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem' } }} />
+          </BrowserRouter>
+        </CompareProvider>
+      </TenantAuthProvider>
     </AuthProvider>
   );
 }

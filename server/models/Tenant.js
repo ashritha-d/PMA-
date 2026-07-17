@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const tenantSchema = new mongoose.Schema({
   tenantCode: { type: String, unique: true },
@@ -38,6 +39,10 @@ const tenantSchema = new mongoose.Schema({
   // Status
   status: { type: String, enum: ['active', 'former', 'pending'], default: 'active' },
   isActive: { type: Boolean, default: true },
+  // Tenant self-service portal — independent of Admin/User auth. Unset
+  // password until an admin sends a portal invite (see routes/tenantPortal.js).
+  password: { type: String, select: false },
+  portalEnabled: { type: Boolean, default: false },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
@@ -45,13 +50,21 @@ const tenantSchema = new mongoose.Schema({
 
 tenantSchema.index({ status: 1 });
 
-tenantSchema.pre('save', function (next) {
+tenantSchema.pre('save', async function (next) {
   this.updatedAt = Date.now();
   if (!this.tenantCode) {
     this.tenantCode = 'TNT' + Date.now().toString().slice(-8);
   }
+  if (this.isModified('password') && this.password) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
   next();
 });
+
+tenantSchema.methods.matchPassword = async function (entered) {
+  if (!this.password) return false;
+  return bcrypt.compare(entered, this.password);
+};
 
 tenantSchema.virtual('fullName').get(function () {
   return `${this.salutation} ${this.firstName} ${this.lastName}`;

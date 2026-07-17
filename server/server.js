@@ -90,6 +90,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/user-properties', require('./routes/userProperties'));
 app.use('/api/owners', require('./routes/owners'));
 app.use('/api/tenants', require('./routes/tenants'));
+app.use('/api/tenant-portal', require('./routes/tenantPortal'));
 app.use('/api/contracts', require('./routes/contracts'));
 app.use('/api/fintrans', require('./routes/finTrans'));
 app.use('/api/servtrans', require('./routes/servTrans'));

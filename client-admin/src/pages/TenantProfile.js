@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { FiArrowLeft, FiEdit2, FiFileText, FiCalendar, FiPhone, FiMail, FiBriefcase, FiHome, FiDollarSign } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiFileText, FiCalendar, FiPhone, FiMail, FiBriefcase, FiHome, FiDollarSign, FiKey, FiSend, FiCheckCircle } from 'react-icons/fi';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
 
@@ -67,6 +67,7 @@ const TenantProfile = () => {
   const navigate = useNavigate();
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     API.get(`/tenants/${id}`)
@@ -74,6 +75,20 @@ const TenantProfile = () => {
       .catch(() => toast.error('Failed to load tenant profile'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const sendPortalInvite = async () => {
+    if (!tenant?.email) { toast.error('Tenant has no email on file'); return; }
+    setInviting(true);
+    try {
+      await API.post(`/tenant-portal/invite/${id}`);
+      toast.success(`Portal invite sent to ${tenant.email}`);
+      setTenant(prev => ({ ...prev, portalEnabled: true }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send invite');
+    } finally {
+      setInviting(false);
+    }
+  };
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
   if (!tenant) return <div className="page-header"><p>Tenant not found.</p></div>;
@@ -196,6 +211,26 @@ const TenantProfile = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Portal Access */}
+      <div className="card card-body" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: tenant.portalEnabled ? '#d1fae5' : 'var(--gray-100)', color: tenant.portalEnabled ? '#065f46' : 'var(--gray-400)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FiKey size={17} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Tenant Portal Access</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>
+              {tenant.portalEnabled
+                ? <span style={{ color: '#065f46', display: 'flex', alignItems: 'center', gap: 4 }}><FiCheckCircle size={12} /> Enabled — can log in and pay rent online</span>
+                : 'Not enabled — tenant cannot log in yet'}
+            </div>
+          </div>
+        </div>
+        <button className="btn btn-outline btn-sm" onClick={sendPortalInvite} disabled={inviting || !tenant.email}>
+          <FiSend size={13} /> {inviting ? 'Sending...' : tenant.portalEnabled ? 'Resend Invite' : 'Send Portal Invite'}
+        </button>
       </div>
 
       {/* Documents */}
