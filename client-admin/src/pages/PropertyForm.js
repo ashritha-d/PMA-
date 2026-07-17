@@ -1,10 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiUpload, FiX, FiArrowLeft } from 'react-icons/fi';
+import { FiUpload, FiX, FiArrowLeft, FiCheckCircle, FiCircle } from 'react-icons/fi';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
+import AIDescriptionAssist from '../components/AIDescriptionAssist';
+import DuplicateWarningBanner from '../components/DuplicateWarningBanner';
 
 const AMENITIES = ['Swimming Pool', 'Gym', 'Security', 'Parking', 'Lift', 'Power Backup', 'Garden', 'Club House', 'WiFi', 'Air Conditioning', 'Modular Kitchen', 'Intercom', 'CCTV', 'Fire Safety'];
+
+// Pure client-side completeness check — no server round-trip needed since
+// it only ever looks at data already in the form (works identically for an
+// unsaved draft and a saved property being edited).
+const buildChecklist = (form, imageCount) => [
+  { label: 'Title', done: form.title.trim().length >= 8 },
+  { label: 'Description (50+ characters)', done: form.description.trim().length >= 50 },
+  { label: 'At least one photo', done: imageCount > 0 },
+  { label: 'Price set', done: Number(form.price) > 0 },
+  { label: 'City', done: !!form.address.city.trim() },
+  { label: 'Amenities selected', done: form.amenities.length > 0 },
+  { label: 'Owner/agent contact', done: !!(form.ownerInfo.name && form.ownerInfo.phone) },
+];
 
 const PropertyForm = () => {
   const { id } = useParams();
@@ -101,6 +116,13 @@ const PropertyForm = () => {
             {/* Basic Info */}
             <div className="card card-body">
               <h3 style={{ fontWeight: 700, marginBottom: 20 }}>Basic Information</h3>
+              <DuplicateWarningBanner
+                title={form.title}
+                city={form.address.city}
+                type={form.type}
+                price={form.price}
+                excludeId={isEdit ? id : undefined}
+              />
               <div className="form-group">
                 <label className="form-label">Property Title *</label>
                 <input className="form-input" required value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Luxurious 3BHK Apartment in Banjara Hills" />
@@ -108,6 +130,10 @@ const PropertyForm = () => {
               <div className="form-group">
                 <label className="form-label">Description *</label>
                 <textarea className="form-textarea" required rows={5} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe the property..." />
+                <AIDescriptionAssist
+                  formData={{ title: form.title, type: form.type, listingType: form.listingType, city: form.address.city, state: form.address.state, features: form.features, amenities: form.amenities }}
+                  onApply={(text) => set('description', text)}
+                />
               </div>
               <div className="form-grid">
                 <div className="form-group">
@@ -261,6 +287,17 @@ const PropertyForm = () => {
 
           {/* Sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Completeness checklist */}
+            <div className="card card-body">
+              <h3 style={{ fontWeight: 700, marginBottom: 12 }}>Listing Completeness</h3>
+              {buildChecklist(form, existingImages.length + images.length).map(item => (
+                <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: '0.82rem', color: item.done ? 'var(--gray-700)' : 'var(--gray-400)' }}>
+                  {item.done ? <FiCheckCircle size={14} color="#10b981" /> : <FiCircle size={14} color="var(--gray-300)" />}
+                  {item.label}
+                </div>
+              ))}
+            </div>
+
             {/* Publish */}
             <div className="card card-body">
               <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Publish</h3>

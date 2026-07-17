@@ -40,6 +40,27 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
+// Side-by-side comparison — registered before /:id so "compare" isn't
+// swallowed as a property id by that route.
+router.get('/compare', optionalAuth, async (req, res) => {
+  try {
+    const ids = (req.query.ids || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (ids.length < 2) return res.status(400).json({ success: false, message: 'At least 2 property IDs are required' });
+    if (ids.length > 4) return res.status(400).json({ success: false, message: 'You can compare up to 4 properties at a time' });
+
+    const properties = await Property.find({ _id: { $in: ids }, isActive: true })
+      .select('title propertyCode type listingType price priceUnit images address features amenities status isFeatured rating reviewCount');
+
+    // Preserve the order the caller requested rather than Mongo's natural order
+    const byId = new Map(properties.map(p => [p._id.toString(), p]));
+    const ordered = ids.map(id => byId.get(id)).filter(Boolean);
+
+    res.json({ success: true, properties: ordered });
+  } catch (err) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
+  }
+});
+
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id)

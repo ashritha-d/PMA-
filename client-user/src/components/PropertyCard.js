@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FiMaximize, FiMapPin, FiHeart } from 'react-icons/fi';
+import { FiMaximize, FiMapPin, FiHeart, FiBarChart2 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { useCompare } from '../context/CompareContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 const getImgUrl = (url) => {
@@ -12,7 +13,9 @@ const getImgUrl = (url) => {
 
 const PropertyCard = ({ property }) => {
   const { user, toggleFavorite } = useAuth();
+  const { isComparing, toggleCompare } = useCompare();
   const isFav = user?.favorites?.includes(property._id);
+  const comparing = isComparing(property._id);
   const img = getImgUrl(property.images?.[0]?.url);
 
   const formatPrice = (p) => p >= 10000000 ? `₹${(p / 10000000).toFixed(1)}Cr` : p >= 100000 ? `₹${(p / 100000).toFixed(1)}L` : `₹${p?.toLocaleString()}`;
@@ -29,6 +32,14 @@ const PropertyCard = ({ property }) => {
         </div>
         <button className="property-card-fav" onClick={() => toggleFavorite(property._id)} style={{ color: isFav ? '#ef4444' : '#9ca3af' }}>
           <FiHeart fill={isFav ? '#ef4444' : 'none'} />
+        </button>
+        <button
+          className="property-card-fav"
+          style={{ right: 54, color: comparing ? 'var(--primary)' : '#9ca3af', background: comparing ? 'var(--primary-light)' : undefined }}
+          title={comparing ? 'Remove from comparison' : 'Add to comparison'}
+          onClick={() => toggleCompare(property)}
+        >
+          <FiBarChart2 />
         </button>
       </div>
       <div className="property-card-body">

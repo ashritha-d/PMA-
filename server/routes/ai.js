@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const axios = require('axios');
-const { optionalAuth } = require('../middleware/auth');
+const { optionalAuth, adminProtect } = require('../middleware/auth');
 const Property = require('../models/Property');
 const Category = require('../models/Category');
 const Contract = require('../models/Contract');
@@ -10,6 +10,10 @@ const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const CMS = require('../models/CMS');
 const Tenant = require('../models/Tenant');
+const { sanitizeError } = require('../utils/sanitizeError');
+const { generateText } = require('../utils/geminiClient');
+const { logAiQuery } = require('../utils/aiQueryLogger');
+const { titleSimilarity } = require('../utils/similarity');
 
 const aiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -364,6 +368,85 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
     const errMsg = err.response?.data?.error?.message || err.message || 'Unknown error';
     send({ type: 'error', message: `AI error: ${errMsg}` });
     res.end();
+  }
+});
+
+// POST /api/ai/generate-description — draft marketing copy for a property.
+// Works on both saved properties (propertyId) and in-progress drafts (raw
+// fields from the create form) so it's usable before the property exists.
+router.post('/generate-description', aiLimiter, adminProtect, async (req, res) => {
+  const start = Date.now();
+  const { title, type, listingType, city, state, features, amenities } = req.body;
+  if (!title || !type) {
+    return res.status(400).json({ success: false, message: 'title and type are required' });
+  }
+
+  const details = [
+    `Title: ${title}`,
+    `Type: ${type}`,
+    listingType && `Listing: For ${listingType === 'rent' ? 'Rent' : 'Sale'}`,
+    city && `Location: ${city}${state ? ', ' + state : ''}`,
+    features?.bedrooms && `Bedrooms: ${features.bedrooms}`,
+    features?.bathrooms && `Bathrooms: ${features.bathrooms}`,
+    features?.carpetArea && `Carpet Area: ${features.carpetArea} sqft`,
+    features?.furnished && `Furnishing: ${features.furnished}`,
+    amenities?.length && `Amenities: ${amenities.join(', ')}`,
+  ].filter(Boolean).join('\n');
+
+  const prompt = `Write a compelling, factual real-estate listing description (120-180 words) for the following property. Use only the details given — do not invent amenities, prices, or features not listed. Write in a warm, professional tone suitable for a property listing website. Return only the description text, no headings or markdown.\n\n${details}`;
+
+  try {
+    const description = await generateText(prompt);
+    logAiQuery({ feature: 'description', referenceModel: 'Property', admin: req.admin._id, success: true, latencyMs: Date.now() - start });
+    res.json({ success: true, description: description.trim() });
+  } catch (err) {
+    const errMsg = err.response?.data?.error?.message || err.message || 'Unknown error';
+    logAiQuery({ feature: 'description', referenceModel: 'Property', admin: req.admin._id, success: false, latencyMs: Date.now() - start, errorMessage: errMsg });
+    res.status(500).json({ success: false, message: sanitizeError(err) });
+  }
+});
+
+// GET /api/ai/duplicate-check — heuristic (no AI call) scan for likely
+// duplicate listings. String/numeric matching problem, not a language-
+// understanding one, so this stays a direct query rather than a Gemini call.
+router.get('/duplicate-check', adminProtect, async (req, res) => {
+  try {
+    const { title, city, type, price, excludeId } = req.query;
+    if (!title || !city || !type) {
+      return res.status(400).json({ success: false, message: 'title, city, and type are required' });
+    }
+
+    const query = { isActive: true, type, 'address.city': new RegExp(`^${city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') };
+    if (excludeId) query._id = { $ne: excludeId };
+
+    const candidates = await Property.find(query)
+      .select('title propertyCode price address.city type')
+      .limit(200)
+      .lean();
+
+    const numericPrice = Number(price) || null;
+    const matches = candidates
+      .map(c => {
+        const titleScore = titleSimilarity(title, c.title);
+        const priceClose = numericPrice && c.price
+          ? Math.abs(c.price - numericPrice) / Math.max(c.price, numericPrice) <= 0.15
+          : false;
+        return { property: c, titleScore, priceClose };
+      })
+      .filter(m => m.titleScore >= 0.5 || (m.titleScore >= 0.3 && m.priceClose))
+      .sort((a, b) => b.titleScore - a.titleScore)
+      .slice(0, 3)
+      .map(m => ({
+        propertyId: m.property._id,
+        title: m.property.title,
+        propertyCode: m.property.propertyCode,
+        price: m.property.price,
+        similarity: Math.round(m.titleScore * 100),
+      }));
+
+    res.json({ success: true, matches });
+  } catch (err) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

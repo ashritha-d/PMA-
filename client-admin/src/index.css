@@ -177,6 +177,7 @@ tbody tr:hover { background: var(--gray-50); }
 
 /* Spinner */
 .spinner { width: 32px; height: 32px; border: 3px solid var(--gray-200); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; margin: auto; }
+.spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-center { display: flex; align-items: center; justify-content: center; min-height: 300px; }
 .empty-state { text-align: center; padding: 60px 24px; color: var(--gray-400); }
