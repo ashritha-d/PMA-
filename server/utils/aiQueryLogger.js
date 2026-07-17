@@ -6,9 +6,9 @@ const AiQueryLog = require('../models/AiQueryLog');
 // AI feature usage/cost/latency, not to store what was generated or
 // extracted (extracted document fields especially must never land here —
 // see OCR privacy notes in the Milestone 2 plan).
-async function logAiQuery({ feature, referenceId, referenceModel, admin, success, latencyMs, errorMessage }) {
+async function logAiQuery({ feature, referenceId, referenceModel, admin, language, success, latencyMs, errorMessage }) {
   try {
-    await AiQueryLog.create({ feature, referenceId, referenceModel, admin, success, latencyMs, errorMessage });
+    await AiQueryLog.create({ feature, referenceId, referenceModel, admin, language, success, latencyMs, errorMessage });
   } catch (err) {
     console.error('aiQueryLogger failed:', err.message);
   }

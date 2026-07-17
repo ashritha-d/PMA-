@@ -305,11 +305,15 @@ router.get('/models', async (req, res) => {
   }
 });
 
+const CHAT_LANGUAGES = { 'en-IN': 'English', 'hi-IN': 'Hindi', 'te-IN': 'Telugu' };
+
 router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
-  const { messages } = req.body;
+  const chatStart = Date.now();
+  const { messages, language } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ success: false, message: 'messages array is required' });
   }
+  const languageName = CHAT_LANGUAGES[language];
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -336,9 +340,18 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
     const lastMsg = messages[messages.length - 1];
     const userText = lastMsg.content;
 
+    // Voice feature: when the caller (client-user/src/components/AIChat.js)
+    // sends a non-English language selection, instruct the model to reply
+    // entirely in that language while leaving factual/identifying data
+    // (names, addresses, contact info, links, currency) untouched. Omitted
+    // or 'en-IN' language leaves the prompt exactly as before.
+    const languageInstruction = languageName && languageName !== 'English'
+      ? `\n\nIMPORTANT: Reply ONLY in ${languageName}. Keep the response natural and conversational, entirely in ${languageName} — do not mix languages. Do not translate unless the user explicitly asks you to. Keep property names, apartment names, street names, addresses, phone numbers, email addresses, URLs, Google Maps links, and currency values unchanged (do not translate or transliterate these) — only translate descriptive/conversational text into ${languageName}.`
+      : '';
+
     // Inject system prompt + context as a synthetic first exchange
     const systemTurn = [
-      { role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\n${contextBlock}\n\nAcknowledge you understand your role.` }] },
+      { role: 'user', parts: [{ text: `${SYSTEM_PROMPT}${languageInstruction}\n\n${contextBlock}\n\nAcknowledge you understand your role.` }] },
       { role: 'model', parts: [{ text: 'Understood. I am PMA Smart AI Assistant, ready to help with property search, lease details, payments, and platform navigation using the provided data.' }] },
     ];
 
@@ -361,12 +374,14 @@ router.post('/chat', aiLimiter, optionalAuth, async (req, res) => {
     if (text) send({ type: 'delta', text });
 
     send({ type: 'done' });
+    logAiQuery({ feature: 'chat', language, success: true, latencyMs: Date.now() - chatStart });
     res.end();
   } catch (err) {
     const detail = err.response?.data || err.message;
     console.error('AI chat error:', JSON.stringify(detail));
     const errMsg = err.response?.data?.error?.message || err.message || 'Unknown error';
     send({ type: 'error', message: `AI error: ${errMsg}` });
+    logAiQuery({ feature: 'chat', language, success: false, latencyMs: Date.now() - chatStart, errorMessage: errMsg });
     res.end();
   }
 });

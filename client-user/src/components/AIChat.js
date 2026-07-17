@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FiMic, FiPlay, FiPause, FiSquare, FiRotateCcw, FiVolumeX } from 'react-icons/fi';
+import { FiMic, FiPlay, FiPause, FiSquare, FiRotateCcw, FiVolumeX, FiVolume2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import useSpeechSynthesis from '../hooks/useSpeechSynthesis';
@@ -9,11 +9,9 @@ const API_BASE = process.env.REACT_APP_API_URL
   : '/api';
 
 const LANGUAGES = [
-  { code: 'en-US', label: 'English' },
+  { code: 'en-IN', label: 'English' },
   { code: 'hi-IN', label: 'Hindi' },
   { code: 'te-IN', label: 'Telugu' },
-  { code: 'ta-IN', label: 'Tamil' },
-  { code: 'kn-IN', label: 'Kannada' },
 ];
 
 const BOT_AVATAR = (
@@ -72,12 +70,12 @@ function Message({ msg, index, synth, onPlay }) {
             {isPlayingHere ? (
               <button style={iconBtnStyle} title="Pause" aria-label="Pause reading response" onClick={synth.pause}><FiPause size={13} /></button>
             ) : (
-              <button style={iconBtnStyle} title={isPausedHere ? 'Resume' : 'Play'} aria-label={isPausedHere ? 'Resume reading response' : 'Read response aloud'} onClick={() => (isPausedHere ? synth.resume() : onPlay(index, msg.content))}><FiPlay size={13} /></button>
+              <button style={iconBtnStyle} title={isPausedHere ? 'Resume' : 'Play'} aria-label={isPausedHere ? 'Resume reading response' : 'Read response aloud'} onClick={() => (isPausedHere ? synth.resume() : onPlay(index, msg.content, msg.language))}><FiPlay size={13} /></button>
             )}
             {isCurrent && (synth.speaking || synth.paused) && (
               <button style={iconBtnStyle} title="Stop" aria-label="Stop reading response" onClick={synth.stop}><FiSquare size={13} /></button>
             )}
-            <button style={iconBtnStyle} title="Replay" aria-label="Replay response" onClick={() => onPlay(index, msg.content)}><FiRotateCcw size={13} /></button>
+            <button style={iconBtnStyle} title="Replay" aria-label="Replay response" onClick={() => onPlay(index, msg.content, msg.language)}><FiRotateCcw size={13} /></button>
           </div>
         )}
         {canPlay && !synth?.supported && (
@@ -104,7 +102,8 @@ export default function AIChat() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [language, setLanguage] = useState('en-US');
+  const [language, setLanguage] = useState('en-IN');
+  const [muted, setMuted] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
@@ -112,6 +111,7 @@ export default function AIChat() {
   // streaming — auto-speak only fires for voice-initiated turns, not typed
   // ones (avoids surprise audio on an otherwise silent text chat).
   const voiceInitiatedRef = useRef(false);
+  const mutedRef = useRef(false);
 
   const synth = useSpeechSynthesis();
   const { speak: speakResponse } = synth;
@@ -144,19 +144,26 @@ export default function AIChat() {
     }
   }, [recognition.error]);
 
-  // Ctrl+M toggles listening while the chat panel is open.
+  // Ctrl+M toggles listening while the chat panel is open. recognitionStart
+  // is rebound to a new `language` every time the selector changes — must be
+  // a real dependency here, otherwise this closure goes stale after a
+  // language switch and Ctrl+M would keep starting recognition in the
+  // previously-selected language. Destructured (rather than depending on
+  // `recognition.start` directly) so ESLint can track each piece precisely
+  // instead of asking for the whole object, which is a fresh reference every
+  // render and would re-subscribe the listener on every keystroke.
+  const { listening: recognitionListening, supported: recognitionSupported, start: recognitionStart, stop: recognitionStop } = recognition;
   useEffect(() => {
-    if (!open || !recognition.supported) return;
+    if (!open || !recognitionSupported) return;
     const handler = (e) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'm') {
         e.preventDefault();
-        recognition.listening ? recognition.stop() : recognition.start();
+        recognitionListening ? recognitionStop() : recognitionStart();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, recognition.listening, recognition.supported]);
+  }, [open, recognitionListening, recognitionSupported, recognitionStart, recognitionStop]);
 
   const sendMessage = useCallback(async (text) => {
     const userText = (text || input).trim();
@@ -168,7 +175,10 @@ export default function AIChat() {
     setLoading(true);
 
     const placeholderIdx = history.length;
-    setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }]);
+    // Tag the reply with the language it's generated in so Replay always
+    // uses the right voice/locale later, even if the user switches the
+    // language selector before clicking Replay on an older message.
+    setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true, language }]);
 
     // Build messages array (exclude the streaming placeholder)
     const apiMessages = history.map(m => ({ role: m.role, content: m.content }));
@@ -184,7 +194,7 @@ export default function AIChat() {
       const res = await fetch(`${API_BASE}/ai/chat`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({ messages: apiMessages, language }),
         signal: controller.signal,
       });
 
@@ -200,7 +210,7 @@ export default function AIChat() {
       const updateMsg = (text, streaming) => {
         setMessages(prev => {
           const updated = [...prev];
-          updated[placeholderIdx] = { role: 'assistant', content: text, streaming };
+          updated[placeholderIdx] = { ...updated[placeholderIdx], content: text, streaming };
           return updated;
         });
       };
@@ -224,7 +234,7 @@ export default function AIChat() {
               updateMsg(accumulated, false);
               if (voiceInitiatedRef.current) {
                 voiceInitiatedRef.current = false;
-                speakResponse(placeholderIdx, accumulated, language);
+                if (!mutedRef.current) speakResponse(placeholderIdx, accumulated, language);
               }
             } else if (payload.type === 'error') {
               updateMsg(payload.message, false);
@@ -264,7 +274,19 @@ export default function AIChat() {
     setOpen(false);
   };
 
-  const handlePlay = (index, text) => synth.speak(index, text, language);
+  // lang defaults to 'en-IN' (not the current selector value) for messages
+  // with no stored language — currently only the hardcoded English welcome
+  // bubble, which should always read in English regardless of whatever
+  // language is selected when it's replayed.
+  const handlePlay = (index, text, lang) => { if (!muted) synth.speak(index, text, lang || 'en-IN'); };
+  const toggleMute = () => {
+    const next = !muted;
+    mutedRef.current = next;
+    if (next) synth.stop(); // muting mid-speech stops the current utterance immediately
+    setMuted(next);
+  };
+
+  const voiceStatus = recognition.listening ? 'Listening…' : loading ? 'Processing…' : synth.speaking ? 'Speaking…' : 'Ready';
 
   return (
     <>
@@ -435,13 +457,30 @@ export default function AIChat() {
               value={language}
               onChange={e => setLanguage(e.target.value)}
               aria-label="Voice language"
-              style={{ border: 'none', background: 'none', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer', outline: 'none' }}
+              style={{ border: 'none', background: 'none', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer' }}
             >
               {LANGUAGES.map(l => <option key={l.code} value={l.code}>🌐 {l.label}</option>)}
             </select>
-            {recognition.supported && (
-              <span style={{ fontSize: '0.7rem', color: '#d1d5db' }}>Ctrl+M to talk</span>
-            )}
+
+            <span aria-live="polite" style={{ fontSize: '0.7rem', color: '#9ca3af', flex: 1, textAlign: 'center' }}>
+              {voiceStatus}
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={toggleMute}
+                aria-label={muted ? 'Unmute voice output' : 'Mute voice output'}
+                title={muted ? 'Unmute' : 'Mute'}
+                style={iconBtnStyle}
+              >
+                {muted ? <FiVolumeX size={14} /> : <FiVolume2 size={14} />}
+              </button>
+              {recognition.supported ? (
+                <span style={{ fontSize: '0.7rem', color: '#d1d5db' }}>Ctrl+M to talk</span>
+              ) : (
+                <span style={{ fontSize: '0.68rem', color: '#ef4444' }}>Voice assistant is supported in Chrome and Edge.</span>
+              )}
+            </div>
           </div>
 
           {/* Input */}
@@ -489,7 +528,7 @@ export default function AIChat() {
               className={recognition.listening ? 'ai-mic-btn listening' : 'ai-mic-btn'}
               onClick={() => (recognition.listening ? recognition.stop() : recognition.start())}
               disabled={!recognition.supported || loading}
-              title={recognition.supported ? (recognition.listening ? 'Stop listening' : 'Talk to AI (Ctrl+M)') : "Voice input isn't supported in this browser — try Chrome or Edge"}
+              title={recognition.supported ? (recognition.listening ? 'Stop listening' : 'Talk to AI (Ctrl+M)') : 'Voice assistant is supported in Chrome and Edge.'}
               aria-label={recognition.listening ? 'Stop voice input' : 'Start voice input'}
               style={{
                 width: 40,
