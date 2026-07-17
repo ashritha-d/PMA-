@@ -48,9 +48,14 @@ const PropertyCard = ({ property }) => {
           {property.listingType === 'rent' && <span>/{property.priceUnit || 'month'}</span>}
         </div>
         <div className="property-card-title" title={property.title}>{property.title}</div>
-        <div className="property-card-location">
-          <FiMapPin size={12} />
-          {property.address?.city}, {property.address?.state}
+        <div className="property-card-location" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <FiMapPin size={12} />
+            {property.address?.city}, {property.address?.state}
+          </span>
+          <Link to={`/properties/${property._id}#location`} style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            📍 View on Map
+          </Link>
         </div>
         <div className="property-card-features">
           {property.features?.bedrooms > 0 && (

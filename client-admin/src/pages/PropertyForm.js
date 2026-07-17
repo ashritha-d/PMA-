@@ -5,6 +5,7 @@ import API from '../api/axios';
 import toast from 'react-hot-toast';
 import AIDescriptionAssist from '../components/AIDescriptionAssist';
 import DuplicateWarningBanner from '../components/DuplicateWarningBanner';
+import LocationPicker from '../components/LocationPicker';
 
 const AMENITIES = ['Swimming Pool', 'Gym', 'Security', 'Parking', 'Lift', 'Power Backup', 'Garden', 'Club House', 'WiFi', 'Air Conditioning', 'Modular Kitchen', 'Intercom', 'CCTV', 'Fire Safety'];
 
@@ -30,6 +31,8 @@ const PropertyForm = () => {
   const [form, setForm] = useState({
     title: '', description: '', type: 'apartment', listingType: 'rent', price: '', priceUnit: 'month',
     address: { line1: '', line2: '', city: '', state: '', country: 'India', zipCode: '', landmark: '' },
+    location: { coordinates: [0, 0] },
+    placeId: '',
     features: { bedrooms: '', bathrooms: '', washrooms: '', balconies: '', carParkings: '', servantRooms: '', landArea: '', carpetArea: '', builtupArea: '', facing: '', furnished: 'unfurnished', yearOfConstruction: '' },
     ownerInfo: { name: '', phone: '', email: '' },
     amenities: [],
@@ -51,6 +54,8 @@ const PropertyForm = () => {
         setForm({
           title: p.title || '', description: p.description || '', type: p.type || 'apartment', listingType: p.listingType || 'rent', price: p.price || '', priceUnit: p.priceUnit || 'month',
           address: p.address || { line1: '', line2: '', city: '', state: '', country: 'India', zipCode: '', landmark: '' },
+          location: p.location || { coordinates: [0, 0] },
+          placeId: p.placeId || '',
           features: { ...{ bedrooms: '', bathrooms: '', washrooms: '', balconies: '', carParkings: '', servantRooms: '', landArea: '', carpetArea: '', builtupArea: '', facing: '', furnished: 'unfurnished', yearOfConstruction: '' }, ...p.features },
           ownerInfo: p.ownerInfo || { name: '', phone: '', email: '' },
           amenities: p.amenities || [],
@@ -180,6 +185,20 @@ const PropertyForm = () => {
             {/* Address */}
             <div className="card card-body">
               <h3 style={{ fontWeight: 700, marginBottom: 20 }}>Location & Address</h3>
+              <div style={{ marginBottom: 20 }}>
+                <label className="form-label">Search on Map</label>
+                <LocationPicker
+                  address={form.address}
+                  coordinates={form.location.coordinates}
+                  onSelect={({ address, coordinates, placeId }) => setForm(prev => ({
+                    ...prev,
+                    address: { ...prev.address, ...address },
+                    location: { ...prev.location, coordinates },
+                    placeId,
+                  }))}
+                  onCoordinatesChange={(coordinates) => setForm(prev => ({ ...prev, location: { ...prev.location, coordinates } }))}
+                />
+              </div>
               <div className="form-group">
                 <label className="form-label">Address Line 1</label>
                 <input className="form-input" value={form.address.line1} onChange={e => setNested('address', 'line1', e.target.value)} />

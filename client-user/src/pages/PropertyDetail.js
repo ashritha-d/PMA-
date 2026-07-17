@@ -5,6 +5,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
+import PropertyLocationMap from '../components/PropertyLocationMap';
 
 // ─── Signature Canvas ────────────────────────────────────────────────────────
 const SignatureCanvas = ({ canvasRef }) => {
@@ -224,6 +225,15 @@ const PropertyDetail = () => {
     }).finally(() => setLoading(false));
   }, [id]);
 
+  // React Router doesn't auto-scroll to a #hash on client-side navigation
+  // (unlike a full page load) — needed so the "View on Map" card link
+  // actually lands on the location section once it's rendered.
+  useEffect(() => {
+    if (!property || !window.location.hash) return;
+    const el = document.querySelector(window.location.hash);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }, [property]);
+
   const isFav = user?.favorites?.includes(id);
   const formatPrice = (p) => p >= 10000000 ? `₹${(p / 10000000).toFixed(1)}Cr` : p >= 100000 ? `₹${(p / 100000).toFixed(1)}L` : `₹${p?.toLocaleString()}`;
 
@@ -436,6 +446,9 @@ const PropertyDetail = () => {
                 </div>
               </div>
             )}
+
+            {/* Location */}
+            <PropertyLocationMap property={property} />
 
             {/* Reviews */}
             <div style={{ background: 'white', borderRadius: 12, padding: 28 }}>

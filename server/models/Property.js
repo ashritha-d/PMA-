@@ -22,8 +22,23 @@ const propertySchema = new mongoose.Schema({
   },
   location: {
     type: { type: String, enum: ['Point'], default: 'Point' },
-    coordinates: { type: [Number], default: [0, 0] },
+    coordinates: {
+      type: [Number],
+      default: [0, 0],
+      validate: {
+        validator: function (v) {
+          if (!Array.isArray(v) || v.length !== 2) return false;
+          const [lng, lat] = v;
+          // [0,0] is the "not set" default (Null Island) — always allowed
+          if (lng === 0 && lat === 0) return true;
+          return typeof lng === 'number' && typeof lat === 'number'
+            && lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90;
+        },
+        message: 'location.coordinates must be [longitude, latitude] within valid ranges',
+      },
+    },
   },
+  placeId: { type: String, trim: true },
   features: {
     bedrooms: { type: Number, default: 0 },
     bathrooms: { type: Number, default: 0 },
