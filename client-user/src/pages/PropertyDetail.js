@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
 import PropertyLocationMap from '../components/PropertyLocationMap';
+import { isPurchasableListing } from '../utils/listingType';
 
 // ─── Signature Canvas ────────────────────────────────────────────────────────
 const SignatureCanvas = ({ canvasRef }) => {
@@ -282,6 +283,7 @@ const PropertyDetail = () => {
   };
 
   const openPurchaseWizard = () => {
+    if (!isPurchasableListing(property)) { toast.error('This property is listed for rent and cannot be purchased.'); return; }
     if (!isAuthenticated) { toast.error('Please login to proceed'); navigate('/login'); return; }
     const defaultAdvance = Math.round((property.price || 0) * 0.1);
     setContractForm({ advanceAmount: defaultAdvance, handoverDate: '', termsAccepted: false, paymentSchedule: [] });
@@ -526,13 +528,19 @@ const PropertyDetail = () => {
                   <a href={`tel:${property.ownerInfo.phone}`} className="btn btn-ghost btn-full"><FiPhone /> {property.ownerInfo.phone}</a>
                 )}
                 <a href={`https://wa.me/919999999999?text=Hi, I'm interested in ${property.title}`} target="_blank" rel="noopener noreferrer" className="btn btn-full" style={{ background: '#25d366', color: 'white' }}><FaWhatsapp /> WhatsApp</a>
-                <button
-                  className="btn btn-full"
-                  style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700, fontSize: '1rem', gap: 8 }}
-                  onClick={openPurchaseWizard}
-                >
-                  <FiShoppingCart /> Purchase Now
-                </button>
+                {isPurchasableListing(property) ? (
+                  <button
+                    className="btn btn-full"
+                    style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', fontWeight: 700, fontSize: '1rem', gap: 8 }}
+                    onClick={openPurchaseWizard}
+                  >
+                    <FiShoppingCart /> Purchase Now
+                  </button>
+                ) : (
+                  <button className="btn btn-full" disabled style={{ background: 'var(--gray-100)', color: 'var(--gray-400)', fontWeight: 700, fontSize: '1rem', gap: 8, cursor: 'not-allowed' }}>
+                    <FiShoppingCart /> Available for Rent Only
+                  </button>
+                )}
               </div>
             </div>
 

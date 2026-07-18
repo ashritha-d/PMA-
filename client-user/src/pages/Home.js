@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Slider from 'react-slick';
-import { FiSearch, FiArrowRight, FiHome, FiUsers, FiStar, FiTrendingUp } from 'react-icons/fi';
+import { FiSearch, FiArrowRight, FiHome, FiUsers, FiStar, FiTrendingUp, FiMic } from 'react-icons/fi';
 import { FaBuilding, FaWarehouse, FaTree, FaHotel } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 import PropertyCard from '../components/PropertyCard';
 import API from '../api/axios';
 
@@ -35,7 +36,46 @@ const Home = () => {
   const [featured, setFeatured] = useState([]);
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
   const navigate = useNavigate();
+
+  // Stop any in-flight recognition session if the user navigates away mid-listen.
+  useEffect(() => () => recognitionRef.current?.stop(), []);
+
+  const toggleVoiceSearch = useCallback(() => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Voice search is not supported or microphone access was denied.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) transcript += event.results[i][0].transcript;
+      setSearch(prev => ({ ...prev, query: transcript }));
+    };
+    recognition.onerror = (event) => {
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        toast.error('Voice search is not supported or microphone access was denied.');
+      }
+    };
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  }, [listening]);
 
   useEffect(() => {
     Promise.all([
@@ -73,7 +113,24 @@ const Home = () => {
             <p className="hero-subtitle">Discover thousands of premium properties for rent and sale. Your perfect home is just a search away.</p>
             <form onSubmit={handleSearch}>
               <div className="search-bar">
-                <input className="search-input" placeholder="Search by location, property name..." value={search.query} onChange={e => setSearch({ ...search, query: e.target.value })} />
+                <div className="search-input-wrap">
+                  <input
+                    className="search-input"
+                    placeholder={listening ? 'Listening...' : 'Search by location, property name...'}
+                    value={search.query}
+                    onChange={e => setSearch({ ...search, query: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className={`mic-btn${listening ? ' mic-btn-active' : ''}`}
+                    onClick={toggleVoiceSearch}
+                    aria-label={listening ? 'Stop voice search' : 'Search by voice'}
+                    aria-pressed={listening}
+                    title="Voice search"
+                  >
+                    <FiMic aria-hidden="true" />
+                  </button>
+                </div>
                 <select className="search-select" value={search.type} onChange={e => setSearch({ ...search, type: e.target.value })}>
                   <option value="">All Types</option>
                   <option value="apartment">Apartment</option>

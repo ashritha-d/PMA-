@@ -11,6 +11,9 @@ const Admin = require('../models/Admin');
 const { protect, adminProtect } = require('../middleware/auth');
 const { sanitizeError } = require('../utils/sanitizeError');
 const { logActivity } = require('../utils/activityLogger');
+const { isPurchasableListing } = require('../utils/listingType');
+
+const NOT_PURCHASABLE_MESSAGE = 'Purchase contracts are not allowed for rental properties.';
 
 const getRazorpay = () => new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -25,6 +28,10 @@ router.post('/', protect, async (req, res) => {
     const property = await Property.findById(propertyId)
       .populate('createdByUser', 'firstName lastName email phone');
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    if (!isPurchasableListing(property)) {
+      return res.status(400).json({ success: false, message: NOT_PURCHASABLE_MESSAGE });
+    }
 
     const purchasePrice = property.price;
     const advance = Number(advanceAmount) || 0;
@@ -193,8 +200,17 @@ router.post('/:id/sign', protect, async (req, res) => {
     const isBuyer = contract.buyerId.toString() === req.user._id.toString();
     if (!isBuyer) return res.status(403).json({ success: false, message: 'Only the buyer can sign here' });
 
-    if (contract.advanceAmount > 0 && !contract.advancePaid) return res.status(400).json({ success: false, message: 'Advance payment must be completed before signing' });
+    // Already-signed contracts return early here regardless of listing
+    // type, so a rental property whose contract was signed before this
+    // guard existed keeps its signed state untouched.
     if (contract.buyerSignedAt) return res.status(400).json({ success: false, message: 'Already signed' });
+
+    const property = await Property.findById(contract.propertyId);
+    if (!property || !isPurchasableListing(property)) {
+      return res.status(400).json({ success: false, message: NOT_PURCHASABLE_MESSAGE });
+    }
+
+    if (contract.advanceAmount > 0 && !contract.advancePaid) return res.status(400).json({ success: false, message: 'Advance payment must be completed before signing' });
 
     await ContractSignature.create({
       contractId: contract._id,
@@ -289,6 +305,11 @@ router.post('/:id/razorpay/create-order', protect, async (req, res) => {
     const isBuyer = contract.buyerId.toString() === req.user._id.toString();
     if (!isBuyer) return res.status(403).json({ success: false, message: 'Access denied' });
 
+    const property = await Property.findById(contract.propertyId);
+    if (!property || !isPurchasableListing(property)) {
+      return res.status(400).json({ success: false, message: NOT_PURCHASABLE_MESSAGE });
+    }
+
     if (contract.advancePaid) return res.status(400).json({ success: false, message: 'Advance already paid' });
     if (contract.advanceAmount <= 0) return res.status(400).json({ success: false, message: 'No advance amount set on this contract' });
 
@@ -325,8 +346,15 @@ router.post('/:id/razorpay/verify', protect, async (req, res) => {
 
     // Idempotency: don't re-process (or let a replayed request re-process)
     // an advance that's already been recorded as paid for this contract.
+    // Checked before the purchasable-listing gate so an already-completed
+    // payment on an existing contract keeps returning success unchanged.
     if (contract.advancePaid) {
       return res.json({ success: true, contract });
+    }
+
+    const property = await Property.findById(contract.propertyId);
+    if (!property || !isPurchasableListing(property)) {
+      return res.status(400).json({ success: false, message: NOT_PURCHASABLE_MESSAGE });
     }
 
     // The order submitted must be the exact order this contract's
