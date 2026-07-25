@@ -1,0 +1,346 @@
+Here's a professional prompt you can use with Claude Pro or any AI presentation generator:
+
+---
+
+## **Prompt: Update My Project PPT Using the Attached BVRIT Template**
+
+I have attached the official **BVRIT Dissertation Review-III PPT template**. Use this template as the base and **do not change its theme, color scheme, fonts, slide master, animations, or overall design**. Only update the content professionally according to my project.
+
+The final PPT should be **viva-ready**, **professional**, and suitable for **supervisor approval**. Follow the BVRIT formatting and branding throughout the presentation. 
+
+### Instructions
+
+* Keep the existing template, logo placement, colors, and formatting unchanged.
+* Replace all sample content with my project content.
+* Use concise bullet points (avoid lengthy paragraphs).
+* Include diagrams, icons, SmartArt, flowcharts, tables, and graphs wherever appropriate.
+* Ensure the presentation is technically accurate and visually attractive.
+* The PPT should be suitable for a **15–20 minute viva presentation**.
+
+---
+
+# Slides to Include
+
+## 1. Title
+
+* Project Title
+* Student Name
+* Roll Number
+* Guide Name
+* Department
+* College
+* Academic Year
+
+---
+
+## 2. Abstract
+
+* Project overview
+* Problem addressed
+* Proposed solution
+* Technologies used
+* Expected outcomes
+
+---
+
+## 3. Introduction
+
+Include:
+
+* Background
+* Motivation
+* Importance of the project
+* Real-world applications
+
+---
+
+## 4. Literature Survey (Table Format)
+
+Create a professional comparison table with **6–8 recent journal papers (2022–2025)**.
+
+Table Columns:
+
+| S.No | Paper Title | Authors | Journal Name | Year | Methodology | Key Findings | Limitations |
+
+Use only reputable journals such as:
+
+* IEEE
+* Springer
+* Elsevier
+* ACM
+* MDPI
+
+---
+
+## 5. Literature Gap / Research Gap
+
+Clearly explain:
+
+* What existing research has achieved
+* Existing limitations
+* Missing features
+* How my project fills these gaps
+
+Use comparison bullets.
+
+---
+
+## 6a. Problem Statement + Objectives
+
+### Problem Statement
+
+Explain the real-world problem.
+
+### Objectives
+
+List 5–8 clear objectives.
+
+---
+
+## 6b. Existing System
+
+Explain:
+
+* Existing approaches
+* Current workflow
+
+### Disadvantages
+
+Include points such as:
+
+* Low accuracy
+* Manual processing
+* Time consuming
+* Security limitations
+* Poor scalability
+* High cost
+
+---
+
+## 7. System Architecture
+
+Design a professional architecture diagram showing:
+
+User
+
+↓
+
+Frontend
+
+↓
+
+Authentication
+
+↓
+
+Voice Assistant
+
+↓
+
+Backend APIs
+
+↓
+
+Database
+
+↓
+
+Admin Panel
+
+↓
+
+Reports/Analytics
+
+Use arrows and icons.
+
+---
+
+## 8. Proposed System
+
+Explain:
+
+* New workflow
+* New features
+* Improved architecture
+
+### Advantages
+
+Mention:
+
+* Faster
+* More secure
+* Better accuracy
+* User-friendly
+* Scalable
+* Intelligent
+
+### Extension / Novelty
+
+Highlight what is unique about the project.
+
+---
+
+## 9. Algorithms Description
+
+Explain every algorithm/module used.
+
+For each algorithm include:
+
+* Purpose
+* Working principle
+* Advantages
+
+Include flowcharts wherever possible.
+
+---
+
+## 10. Working Modules
+
+Create a module-wise workflow.
+
+Example:
+
+* User Module
+* Authentication Module
+* Voice Assistant Module
+* Property Recommendation Module
+* Admin Module
+* Database Module
+* Reporting Module
+
+Use SmartArt or flow diagrams.
+
+---
+
+## 11. Requirements
+
+### Hardware
+
+* Processor
+* RAM
+* Storage
+* Internet
+
+### Software
+
+* Operating System
+* Programming Language
+* Frameworks
+* Database
+* IDE
+* APIs
+
+---
+
+## 12. Experimental Results
+
+Include:
+
+Dataset:
+
+* Number of users
+* Number of records
+* Data sources
+
+Confusion Matrix
+
+Performance Graphs:
+
+* Accuracy
+* Precision
+* Recall
+* F1 Score
+* Response Time
+* Training Loss (if applicable)
+
+Generate professional charts.
+
+---
+
+## 13. Execution
+
+Include screenshots of:
+
+* Login
+* Registration
+* Dashboard
+* Main Features
+* Voice Assistant
+* Search
+* Results
+* Admin Panel
+
+Arrange screenshots professionally.
+
+---
+
+## 14. Result Analysis
+
+Present performance in table and graph format.
+
+Include:
+
+| Metric | Value |
+
+Such as:
+
+* Accuracy
+* Precision
+* Recall
+* F1 Score
+* Response Time
+* Processing Time
+
+Explain improvements over the existing system.
+
+---
+
+## 15. Conclusion
+
+Summarize:
+
+* Project achievements
+* Objectives completed
+* Benefits
+* Practical applications
+
+---
+
+## 16. Future Scope
+
+Mention possible future enhancements such as:
+
+* AI improvements
+* Mobile application
+* Cloud deployment
+* Multilingual support
+* Predictive analytics
+* IoT integration
+* Advanced Voice Assistant capabilities
+
+---
+
+## 17. References
+
+Include **10–15 IEEE-format references** from recent journals (2022–2025).
+
+Only use authentic sources such as:
+
+* IEEE Xplore
+* Springer
+* Elsevier
+* ACM Digital Library
+* MDPI
+
+---
+
+# Presentation Quality Requirements
+
+* Follow the attached BVRIT template exactly.
+* Use consistent fonts, spacing, and alignment.
+* Maintain professional animations and transitions if already present.
+* Keep slides visually balanced with minimal text.
+* Add relevant icons, diagrams, and SmartArt where appropriate.
+* Ensure there are no grammatical or spelling errors.
+* Make the PPT ready for supervisor approval and viva presentation.
+* The final presentation should be polished, professional, and require minimal or no further editing.
