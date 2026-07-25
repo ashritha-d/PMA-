@@ -1,20 +1,14 @@
 // One-off script to create or update the Super Admin login.
-<<<<<<< HEAD
 // Run from the server/ directory, supplying the new credentials as env vars
 // so nothing sensitive is ever hardcoded or committed to the repo:
 //
 //   NEW_ADMIN_EMAIL=you@example.com NEW_ADMIN_PASSWORD=your-password node scripts/setAdminCredentials.js
 //
 // (On Windows PowerShell: $env:NEW_ADMIN_EMAIL="..."; $env:NEW_ADMIN_PASSWORD="..."; node scripts/setAdminCredentials.js)
-=======
-// Run once from the server/ directory: node scripts/setAdminCredentials.js
-// Delete this file after running it so the credential doesn't linger in the repo.
->>>>>>> 461d4c4f7c8c47df859fcee6d3955682ec8f36fd
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
 
-<<<<<<< HEAD
 const NEW_EMAIL = process.env.NEW_ADMIN_EMAIL;
 const NEW_PASSWORD = process.env.NEW_ADMIN_PASSWORD;
 
@@ -22,10 +16,6 @@ if (!NEW_EMAIL || !NEW_PASSWORD) {
   console.error('Set NEW_ADMIN_EMAIL and NEW_ADMIN_PASSWORD environment variables before running this script.');
   process.exit(1);
 }
-=======
-const NEW_EMAIL = 'ashritha@gmail.com';
-const NEW_PASSWORD = 'Admin';
->>>>>>> 461d4c4f7c8c47df859fcee6d3955682ec8f36fd
 
 async function run() {
   await mongoose.connect(process.env.MONGO_URI);
